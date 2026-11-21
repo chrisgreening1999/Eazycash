@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#edf9e9">
+  <meta name="description" content="EazyCash loan application portal">
+  <title>EazyCash</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+</head>
+<body>
+  <div id="app">
+    <section id="login-screen" class="login-screen" aria-labelledby="login-title">
+      <div class="login-card">
+        <div class="login-decoration login-decoration-top" aria-hidden="true"></div>
+        <div class="login-decoration login-decoration-bottom" aria-hidden="true"></div>
+        <div class="login-hero">
+          <div class="login-hero-copy">
+            <div class="wordmark wordmark-light"><span class="money-bag-mark">$</span><span><strong>Eazy</strong>Cash</span></div>
+            <h1>EazyCash</h1>
+            <p>Apply for a loan and get<br>started in seconds.</p>
+          </div>
+          <div class="login-hero-art" aria-hidden="true">
+            <span class="spark spark-one"></span><span class="spark spark-two"></span><span class="spark spark-three"></span>
+            <span class="bag-top"></span><span class="bag-body">$</span>
+            <span class="paper"><i></i><i></i><b>✓</b></span>
+          </div>
+        </div>
+        <div class="login-content">
+          <h2 id="login-title">Welcome Back!</h2>
+          <p>Sign in with your Google account to<br>continue your loan application.</p>
+          <button id="google-signin" class="google-button" type="button">
+            <span class="google-mark" aria-hidden="true">G</span>
+            Continue with Google
+          </button>
+          <p id="login-error" class="form-message error" role="alert"></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="site-shell" class="site-shell hidden" aria-live="polite">
+      <header id="app-header" class="app-header"></header>
+      <main id="view" class="app-main" tabindex="-1"></main>
+      <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation"></nav>
+    </section>
+
+    <div id="modal-root"></div>
+    <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
