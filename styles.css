@@ -356,3 +356,30 @@ h3 { font-size: 18px; }
   .admin-shield svg { width: 30px; height: 30px; }
   .admin-chart-art { width: 112px; height: 95px; transform: scale(.72) skewY(-7deg); transform-origin: right bottom; margin-left: -24px; }
 }
+
+
+.field-help { display: block; margin-top: 5px; color: var(--muted); font-size: 12px; font-weight: 400; line-height: 1.4; }
+.momo-hide-field { margin-top: -4px; }
+.avatar-nav { width: 27px; height: 27px; border-width: 2px; font-size: 11px; }
+.bottom-nav .avatar-nav img { width: 100%; height: 100%; object-fit: cover; }
+.user-identity { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.user-identity > div { min-width: 0; }
+.user-identity h3, .user-identity p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 780px) {
+  .table-shell { overflow: visible; }
+  .data-table { min-width: 0; display: block; }
+  .data-table thead { display: none; }
+  .data-table tbody, .data-table tr, .data-table td { display: block; width: 100%; }
+  .data-table tr { margin: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+  .data-table td { display: grid; grid-template-columns: 102px 1fr; gap: 9px; padding: 7px 0; border: 0; font-size: 13px; }
+  .data-table td::before { color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  .data-table td:nth-child(1)::before { content: 'Reference'; }
+  .data-table td:nth-child(2)::before { content: 'Purpose'; }
+  .data-table td:nth-child(3)::before { content: 'Amount'; }
+  .data-table td:nth-child(4)::before { content: 'Submitted'; }
+  .data-table td:nth-child(5)::before { content: 'Status'; }
+  .data-table td:nth-child(6)::before { content: 'Action'; }
+  .data-table td[colspan] { display: block; }
+  .data-table td[colspan]::before { display: none; }
+}
