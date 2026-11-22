@@ -383,3 +383,9 @@ h3 { font-size: 18px; }
   .data-table td[colspan] { display: block; }
   .data-table td[colspan]::before { display: none; }
 }
+
+.status-deleted { color: #5b4a74; background: #eee5fb; }
+
+.admin-mode .profile-trigger .avatar { width: 46px; height: 46px; }
+.admin-mode .user-card .avatar-sm { width: 54px; height: 54px; font-size: 16px; }
+.verified-badge { display: inline-grid; place-items: center; width: 17px; height: 17px; margin-left: 4px; vertical-align: 2px; border-radius: 50%; background: #1877f2; color: #fff; font: 700 12px/1 Arial, sans-serif; letter-spacing: 0; }
