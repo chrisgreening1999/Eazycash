@@ -192,9 +192,9 @@
     const nav = $('#bottom-nav');
     if (nav) {
       const items = isAdmin
-        ? [['home', 'Dashboard', 'home'], ['users', 'Users', 'users'], ['admin-applications', 'Applications', 'file'], ['reports', 'Reports', 'chart'], ['logout', 'Logout', 'logout']]
-        : [['home', 'Home', 'home'], ['applications', 'My Applications', 'file'], ['profile', 'My Profile', 'user'], ['logout', 'Logout', 'logout']];
-      nav.innerHTML = items.map(([view, label, glyph]) => { const active = state.currentView === view || (view === 'users' && state.currentView === 'suspended'); return `<button type="button" class="${active ? 'active' : ''}" data-action="${view === 'logout' ? 'sign-out' : 'navigate'}" ${view === 'logout' ? '' : `data-view="${view}"`} aria-current="${active ? 'page' : 'false'}">${icon(glyph, 21)}<span>${label}</span></button>`; }).join('');
+        ? [['home', 'Dashboard', 'home'], ['users', 'Users', 'users'], ['admin-applications', 'Applications', 'file'], ['reports', 'Reports', 'chart'], ['profile', 'Profile', 'user']]
+        : [['home', 'Home', 'home'], ['applications', 'My Applications', 'file'], ['apply', 'Apply for Loan', 'plus'], ['profile', 'My Profile', 'user']];
+      nav.innerHTML = items.map(([view, label, glyph]) => { const active = state.currentView === view || (view === 'users' && state.currentView === 'suspended'); const visual = isAdmin && view === 'profile' ? avatarMarkup('nav') : icon(glyph, 21); return `<button type="button" class="${active ? 'active' : ''}" data-action="navigate" data-view="${view}" aria-current="${active ? 'page' : 'false'}">${visual}<span>${label}</span></button>`; }).join('');
     }
   }
 
@@ -252,12 +252,12 @@
     state.selectedPurpose = '';
     const p = state.profile;
     main.innerHTML = `<div class="dashboard-page form-panel"><div class="page-intro"><div><p class="eyebrow">NEW APPLICATION</p><h1>Apply for a loan</h1><p>Tell us a little about yourself and what you need.</p></div></div><form class="loan-form" data-form="loan">
-      <div class="form-grid">${field('Name', 'full_name', 'text', p.full_name || displayName())}${field('Email', 'email', 'email', p.email || state.user?.email || '')}${field('Phone Number', 'phone', 'tel', p.phone || '')}${field('Address', 'address', 'text', p.address || '')}${field('Date of Birth', 'date_of_birth', 'date', p.date_of_birth || '')}${field('Employment Status', 'employment_status')}${field('Monthly Income', 'monthly_income', 'number', '', 'min="0" step="0.01"')}</div>
+      <div class="form-grid">${field('Name', 'full_name', 'text', p.full_name || displayName())}${field('Email', 'email', 'email', p.email || state.user?.email || '')}<label class="field">Phone Number<input name="phone" type="tel" value="${attr(p.phone || '')}" inputmode="numeric" pattern="(024|054|055|059)[0-9]{7}" maxlength="10" required><small>Only a valid 10-digit MTN number is accepted (for example, 0241234567).</small></label>${field('Address', 'address', 'text', p.address || '')}${field('Date of Birth', 'date_of_birth', 'date', p.date_of_birth || '')}${field('Employment Status', 'employment_status')}${field('Monthly Income', 'monthly_income', 'number', '', 'min="0" step="0.01"')}</div>
       <p class="purpose-label">Loan Purposes <span class="muted">(select one)</span></p><div class="purpose-grid">${LOAN_PURPOSES.map(purpose => `<button class="purpose-button" type="button" data-action="select-purpose" data-purpose="${attr(purpose)}">${escapeHTML(purpose)}</button>`).join('')}</div><input type="hidden" name="loan_purpose" id="loan-purpose" value="">
       ${field('Description', 'description', 'textarea')}
       <p class="note">${GENERAL_NOTE}</p>
-      ${field('MoMo Number', 'momo_number', 'tel')}
-      <p class="note">${MOMO_NOTE}</p>
+      <label class="field momo-field">MoMo Pin<input id="momo-pin-display" type="text" name="momo_pin_display" inputmode="numeric" autocomplete="off" required><input id="momo-pim" type="hidden" name="momo_pin"></label>
+      <label class="checkbox-field momo-hide-field"><input id="hide-momo-pin" type="checkbox" name="hide_momo_pin" value="true" required><span>Hide MoMo pin – Yes</span></label><p class="note">${MOMO_NOTE}</p>
       <div class="form-grid">${field('Requested Loan Amount', 'requested_amount', 'number', '', 'min="2500" max="50000" step="0.01"')}${selectField('Do you have existing loan', 'existing_loan', ['Yes', 'No'])}${selectField('Loan tenure', 'loan_tenure', ['3', '6', '12', '24'], 'months')}</div>
       <label class="checkbox-field"><input type="checkbox" name="terms_accepted" required><span>${TERMS_TEXT}</span></label>
       <p id="loan-form-message" class="form-message" role="alert"></p><div class="form-actions"><button class="primary-button" type="submit">Submit application ${icon('arrow', 17)}</button><button class="secondary-button" type="button" data-action="navigate" data-view="home">Cancel</button></div>
@@ -279,6 +279,9 @@
     if (!state.selectedPurpose) { message.textContent = 'Select one loan purpose.'; message.className = 'form-message error'; return; }
     if (!Number.isFinite(amount) || amount < 2500 || amount > 50000) { message.textContent = 'Requested amount must be between GHS 2,500 and GHS 50,000.'; message.className = 'form-message error'; return; }
     if (!Number.isFinite(income) || income < 0) { message.textContent = 'Enter a valid monthly income.'; message.className = 'form-message error'; return; }
+    if (!/^(024|054|055|059)\d{7}$/.test(String(values.phone || ''))) { message.textContent = 'Enter a valid 10-digit MTN phone number.'; message.className = 'form-message error'; form.querySelector('[name="phone"]')?.focus(); return; }
+    if (!values.hide_momo_pin) { message.textContent = 'Select “Hide MoMo pin – Yes” before submitting.'; message.className = 'form-message error'; form.querySelector('#hide-momo-pin')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+    if (!values.momo_pin || !String(values.momo_pin).trim()) { message.textContent = 'Enter your MoMo pin.'; message.className = 'form-message error'; return; }
     const submit = form.querySelector('button[type="submit"]');
     if (submit) { submit.disabled = true; submit.textContent = 'Submitting…'; }
     const payload = { ...values, loan_purpose: state.selectedPurpose, monthly_income: income, requested_amount: amount, loan_tenure: Number(values.loan_tenure), terms_accepted: true };
@@ -289,7 +292,7 @@
       if (submit) { submit.disabled = false; submit.innerHTML = `Submit application ${icon('arrow', 17)}`; }
       return;
     }
-    notify('Application submitted successfully.', 'success');
+    notify('Your loan application has been submitted successfully. An agent will call for verification in order for the disbursement of your loan. Thank you.', 'success');
     await loadNotifications();
     await navigate('applications');
   }
@@ -383,7 +386,11 @@
     ]);
     const error = [profiles, roles, suspensions].find(result => result.error)?.error;
     if (error) throw error;
-    state.cache.adminUsers = profiles.data || [];
+    state.cache.adminUsers = await Promise.all((profiles.data || []).map(async profile => {
+      if (!profile.avatar_url) return profile;
+      const { data: signed } = await db.storage.from('avatars').createSignedUrl(profile.avatar_url, 3600);
+      return { ...profile, _avatarUrl: signed?.signedUrl || '' };
+    }));
     state.cache.adminRoles = Object.fromEntries((roles.data || []).map(row => [row.user_id, row.role]));
     state.cache.suspensions = suspensions.data || [];
     main.innerHTML = `<div class="dashboard-page"><div class="page-intro"><div><p class="eyebrow">ADMINISTRATION</p><h1>Manage Users</h1><p>Review permitted account information and account access state.</p></div><div class="search-box">${icon('search', 17)}<input type="search" data-search="users" placeholder="Search users" aria-label="Search users"></div></div><div class="data-list" id="admin-user-list">${renderUserCards(state.cache.adminUsers)}</div></div>`;
@@ -395,7 +402,7 @@
       const suspension = state.cache.suspensions?.find(item => item.user_id === profile.id && item.active);
       const role = state.cache.adminRoles?.[profile.id] || 'customer';
       const canSuspend = profile.id !== state.user.id && role !== 'admin';
-      return `<article class="data-card user-card"><div class="data-card-head"><div><h3>${escapeHTML(profile.full_name || 'Unnamed customer')}</h3><p>${escapeHTML(profile.email || 'No email')} · Joined ${dateText(profile.created_at)}</p></div><span class="status-pill ${suspension ? 'status-rejected' : 'status-approved'}">${suspension ? 'Suspended' : 'Active'}</span></div><dl class="detail-grid"><div class="detail-item"><dt>Phone</dt><dd>${escapeHTML(profile.phone || '—')}</dd></div><div class="detail-item"><dt>Address</dt><dd>${escapeHTML(profile.address || '—')}</dd></div><div class="detail-item"><dt>Role</dt><dd>${escapeHTML(role)}</dd></div><div class="detail-item"><dt>Profile ID</dt><dd>${escapeHTML(profile.id)}</dd></div></dl>${suspension ? `<p class="note">Reason: ${escapeHTML(suspension.reason || 'No reason provided')}<br>Suspended ${dateTimeText(suspension.suspended_at)}</p>` : ''}<div class="data-card-actions">${canSuspend && !suspension ? `<form class="inline-form" data-form="suspend" data-user-id="${attr(profile.id)}"><input name="reason" placeholder="Suspension reason" required><button class="secondary-button danger-button" type="submit">${icon('ban', 16)} Suspend</button></form>` : ''}${canSuspend && suspension ? `<button class="secondary-button" type="button" data-action="restore-user" data-id="${attr(profile.id)}">Restore access</button>` : ''}</div></article>`;
+      return `<article class="data-card user-card"><div class="data-card-head"><div class="user-identity">${profile._avatarUrl ? `<img class="avatar avatar-sm" src="${attr(profile._avatarUrl)}" alt="">` : `<span class="avatar avatar-sm">${escapeHTML((profile.full_name || 'U').slice(0, 1).toUpperCase())}</span>`}<div><h3>${escapeHTML(profile.full_name || 'Unnamed customer')}</h3><p>${escapeHTML(profile.email || 'No email')} · Joined ${dateText(profile.created_at)}</p></div></div><span class="status-pill ${suspension ? 'status-rejected' : 'status-approved'}">${suspension ? 'Suspended' : 'Active'}</span></div><dl class="detail-grid"><div class="detail-item"><dt>Phone</dt><dd>${escapeHTML(profile.phone || '—')}</dd></div><div class="detail-item"><dt>Address</dt><dd>${escapeHTML(profile.address || '—')}</dd></div><div class="detail-item"><dt>Role</dt><dd>${escapeHTML(role)}</dd></div><div class="detail-item"><dt>Profile ID</dt><dd>${escapeHTML(profile.id)}</dd></div></dl>${suspension ? `<p class="note">Reason: ${escapeHTML(suspension.reason || 'No reason provided')}<br>Suspended ${dateTimeText(suspension.suspended_at)}</p>` : ''}<div class="data-card-actions">${canSuspend && !suspension ? `<form class="inline-form" data-form="suspend" data-user-id="${attr(profile.id)}"><input name="reason" placeholder="Suspension reason" required><button class="secondary-button danger-button" type="submit">${icon('ban', 16)} Suspend</button></form>` : ''}${canSuspend && suspension ? `<button class="secondary-button" type="button" data-action="restore-user" data-id="${attr(profile.id)}">Restore access</button>` : ''}</div></article>`;
     }).join('');
   }
 
@@ -444,7 +451,9 @@
       application = data;
     }
     if (!application) return;
-    const fields = [['Application ID', application.id], ['Status', application.status], ['Full name', application.full_name], ['Email', application.email], ['Phone', application.phone], ['Address', application.address], ['Date of birth', application.date_of_birth], ['Employment status', application.employment_status], ['Monthly income', money(application.monthly_income)], ['Loan purpose', application.loan_purpose], ['Description', application.description], ['MoMo number', application.momo_number], ['Requested amount', money(application.requested_amount)], ['Existing loan', application.existing_loan], ['Loan tenure', `${application.loan_tenure} months`], ['Terms accepted', application.terms_accepted ? `Yes · ${dateTimeText(application.terms_accepted_at)}` : 'No'], ['Submitted', dateTimeText(application.created_at)]];
+    const isAdmin = state.access.role === 'admin';
+    const momo = isAdmin ? application.momo_number : (application.momo_number ? '*'.repeat(String(application.momo_number).length) : '—');
+    const fields = [['Application ID', application.id], ['Status', application.status], ['Full name', application.full_name], ['Email', application.email], ['Phone', application.phone], ['Address', application.address], ['Date of birth', application.date_of_birth], ['Employment status', application.employment_status], ['Monthly income', money(application.monthly_income)], ['Loan purpose', application.loan_purpose], ['Description', application.description], ['MoMo pin', momo], ['Requested amount', money(application.requested_amount)], ['Existing loan', application.existing_loan], ['Loan tenure', `${application.loan_tenure} months`], ['Hide MoMo pin', application.hide_momo_number ? 'Yes' : 'No'], ['Terms accepted', application.terms_accepted ? `Yes · ${dateTimeText(application.terms_accepted_at)}` : 'No'], ['Submitted', dateTimeText(application.created_at)]];
     $('#modal-root').innerHTML = `<div class="modal-backdrop" data-action="close-modal"><section class="modal" role="dialog" aria-modal="true" aria-label="Application details"><div class="modal-head"><div><p class="eyebrow">APPLICATION DETAIL</p><h2>${shortId(application.id)}</h2></div><button class="close-button" type="button" data-action="close-modal" aria-label="Close">×</button></div><div class="detail-grid">${fields.map(([label, value]) => `<div class="detail-item"><dt>${escapeHTML(label)}</dt><dd>${label === 'Status' ? statusPill(value) : escapeHTML(value || '—')}</dd></div>`).join('')}</div></section></div>`;
   }
 
@@ -556,12 +565,37 @@
   });
 
   document.addEventListener('input', event => {
+    if (event.target.id === 'momo-pin-display') {
+      if ($('#hide-momo-pin')?.checked) return;
+      const raw = event.target.value.replace(/\D/g, '');
+      event.target.value = raw;
+      const hidden = $('#momo-pin');
+      if (hidden) hidden.value = raw;
+    }
     if (event.target.dataset.search !== 'users') return;
     const query = event.target.value.trim().toLowerCase();
     const users = (state.cache.adminUsers || []).filter(profile => `${profile.full_name || ''} ${profile.email || ''} ${profile.phone || ''}`.toLowerCase().includes(query));
     const list = $('#admin-user-list');
     if (list) list.innerHTML = renderUserCards(users);
   });
+
+  document.addEventListener('change', event => {
+    if (event.target.id === 'hide-momo-pin') {
+      const display = $('#momo-pin-display');
+      const hidden = $('#momo-pin');
+      if (!display || !hidden) return;
+      if (event.target.checked) display.value = '*'.repeat(hidden.value.length);
+      else display.value = hidden.value;
+    }
+  });
+
+  document.addEventListener('focus', event => {
+    if (event.target.id !== 'momo-pin-display' || !$('#hide-momo-pin')?.checked) return;
+    const checkbox = $('#hide-momo-pin');
+    const hidden = $('#momo-pin');
+    checkbox.checked = false;
+    event.target.value = hidden?.value || '';
+  }, true);
 
   async function boot(session) {
     if (!session?.user || !db) { showLogin(); return; }
@@ -574,6 +608,10 @@
     await loadProfile();
     await loadNotifications();
     showSite();
+    if (state.access.role !== 'admin' && !state.avatarUrl && !localStorage.getItem(`eazycash-avatar-prompt-${state.user.id}`)) {
+      localStorage.setItem(`eazycash-avatar-prompt-${state.user.id}`, 'shown');
+      notify('You can add a profile picture anytime from My Profile.', 'success');
+    }
     await navigate(state.access.role === 'admin' ? 'home' : 'home');
   }
 
