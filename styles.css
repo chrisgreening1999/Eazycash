@@ -412,4 +412,23 @@ html { scroll-padding-top: 96px; }
   .data-table td:last-child .inline-form input { grid-column: 1 / -1; width: 100%; }
   .data-table td:last-child .inline-form button { width: 100%; min-height: 42px; padding-inline: 8px; }
   .table-shell { padding-bottom: 92px; }
+  .data-list { padding-bottom: 92px; }
+}
+
+/* The authenticated header must stay flush to the viewport while the page scrolls. */
+.app-header {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  z-index: 35;
+  transform: translateX(-50%);
+}
+.app-main { padding-top: 96px; }
+@media (max-width: 780px) {
+  .app-header { left: 0; width: 100%; transform: none; }
+  .app-main { padding-top: 78px !important; }
+}
+@media (min-width: 781px) {
+  .app-header { top: 22px; }
+  .app-main { padding-top: 110px; }
 }
