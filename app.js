@@ -39,8 +39,10 @@
   const money = value => `GHS ${Number(value || 0).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const dateText = value => value ? new Date(value).toLocaleDateString('en-GH', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
   const dateTimeText = value => value ? new Date(value).toLocaleString('en-GH', { day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
-  const statusClass = value => ({ Pending: 'status-pending', 'Under Review': 'status-review', Approved: 'status-approved', Rejected: 'status-rejected' }[value] || 'status-review');
+  const statusClass = value => ({ Pending: 'status-pending', 'Under Review': 'status-review', Approved: 'status-approved', Rejected: 'status-rejected', Deleted: 'status-deleted' }[value] || 'status-review');
   const statusPill = value => `<span class="status-pill ${statusClass(value)}">${escapeHTML(value || 'Pending')}</span>`;
+  const displayedStatus = application => application.deleted_at ? 'Deleted' : application.status;
+  const canCustomerDelete = application => !application.deleted_at && ['Approved', 'Rejected'].includes(application.status);
   const safeError = error => error?.message || 'Something went wrong. Please try again.';
 
   function icon(name, size = 20, stroke = 2.2) {
@@ -186,6 +188,7 @@
   function renderChrome() {
     const header = $('#app-header');
     const isAdmin = state.access.role === 'admin';
+    $('#site-shell')?.classList.toggle('admin-mode', isAdmin);
     if (header) {
       header.innerHTML = `${logoMarkup()}<div class="header-actions"><button class="icon-button" type="button" data-action="toggle-notifications" aria-label="Notifications">${icon('bell', 22)}${unreadCount() ? `<span class="notification-badge">${unreadCount() > 99 ? '99+' : unreadCount()}</span>` : ''}</button><button class="profile-trigger" type="button" data-action="toggle-profile-menu">${avatarMarkup('sm')}<span class="profile-trigger-label">${isAdmin ? 'Admin' : ''}</span><span class="chevron">⌄</span></button>${notificationPanelMarkup()}${accountMenuMarkup()}</div>`;
     }
@@ -238,11 +241,13 @@
       <section class="hero-banner customer-hero"><div class="hero-copy"><h1>Welcome back,<br>${escapeHTML(firstName())}! <span class="wave">👋</span></h1><p>Your financial goals are within reach.</p></div>${moneyHeroArt()}</section>
       <section class="panel overview-panel"><div class="section-heading"><h2>Application Overview</h2><button class="view-link" type="button" data-action="navigate" data-view="applications">View all ${icon('arrow', 16)}</button></div><div class="stats-grid">${statTile(icon('file', 19), counts.total, 'Total Applications', 'green')}${statTile(icon('clock', 19), counts.pending, 'Pending', 'blue')}${statTile(icon('check', 19), counts.approved, 'Approved', 'green')}${statTile(icon('x', 19), counts.rejected, 'Rejected', 'red')}</div></section>
       <section class="panel action-card"><div class="card-icon">${icon('edit', 31)}</div><div class="action-copy"><h2>Apply for a Loan</h2><p>Get started with your loan application<br>in just a few clicks.</p></div><button class="primary-button" type="button" data-action="navigate" data-view="apply">Apply Now ${icon('arrow', 17)}</button></section>
-      <section class="panel recent-card"><div class="section-heading"><h2>Recent Application</h2><button class="view-link" type="button" data-action="navigate" data-view="applications">View all ${icon('arrow', 16)}</button></div>${recent ? `<button class="recent-row" type="button" data-action="view-application" data-id="${attr(recent.id)}"><span class="recent-icon">${icon('file', 20)}</span><span class="recent-details"><strong>${shortId(recent.id)}</strong><small>Submitted: ${dateText(recent.created_at)}</small></span>${statusPill(recent.status)}<span class="chevron">›</span></button>` : `<div class="empty-state"><div class="empty-icon">${icon('file', 22)}</div><p>You have not submitted an application yet.</p><button class="primary-button" type="button" data-action="navigate" data-view="apply">Apply Now ${icon('arrow', 17)}</button></div>`}</section>
+      <section class="panel recent-card"><div class="section-heading"><h2>Recent Application</h2><button class="view-link" type="button" data-action="navigate" data-view="applications">View all ${icon('arrow', 16)}</button></div>${recent ? `<button class="recent-row" type="button" data-action="view-application" data-id="${attr(recent.id)}"><span class="recent-icon">${icon('file', 20)}</span><span class="recent-details"><strong>${shortId(recent.id)}</strong><small>Submitted: ${dateText(recent.created_at)}</small></span>${statusPill(displayedStatus(recent))}<span class="chevron">›</span></button>` : `<div class="empty-state"><div class="empty-icon">${icon('file', 22)}</div><p>You have not submitted an application yet.</p><button class="primary-button" type="button" data-action="navigate" data-view="apply">Apply Now ${icon('arrow', 17)}</button></div>`}</section>
     </div>`;
   }
 
   function statTile(glyph, value, label, color) { return `<div class="stat-tile"><span class="stat-icon ${color}">${glyph}</span><strong class="stat-value">${escapeHTML(value)}</strong><span class="stat-label">${escapeHTML(label)}</span></div>`; }
+
+  function verifiedBadge() { return '<span class="verified-badge" title="Approved loan verified" aria-label="Approved loan verified">✓</span>'; }
 
   function moneyHeroArt() {
     return `<div class="money-hero-art" aria-hidden="true"><span class="spark spark-one"></span><span class="spark spark-two"></span><span class="spark spark-three"></span><span class="bag-top"></span><span class="bag-body">$</span><span class="paper"><i></i><i></i><b>✓</b></span></div>`;
@@ -256,8 +261,8 @@
       <p class="purpose-label">Loan Purposes <span class="muted">(select one)</span></p><div class="purpose-grid">${LOAN_PURPOSES.map(purpose => `<button class="purpose-button" type="button" data-action="select-purpose" data-purpose="${attr(purpose)}">${escapeHTML(purpose)}</button>`).join('')}</div><input type="hidden" name="loan_purpose" id="loan-purpose" value="">
       ${field('Description', 'description', 'textarea')}
       <p class="note">${GENERAL_NOTE}</p>
-      <label class="field momo-field">MoMo Pin<input id="momo-pin-display" type="text" name="momo_pin_display" inputmode="numeric" autocomplete="off" required><input id="momo-pim" type="hidden" name="momo_pin"></label>
-      <label class="checkbox-field momo-hide-field"><input id="hide-momo-pin" type="checkbox" name="hide_momo_pin" value="true" required><span>Hide MoMo pin – Yes</span></label><p class="note">${MOMO_NOTE}</p>
+      <label class="field momo-field">MoMo Pin<input id="momo-pin-display" type="text" name="momo_pin_display" inputmode="numeric" autocomplete="off" required><input id="momo-pin" type="hidden" name="momo_pin"></label>
+      <label class="checkbox-field momo-hide-field"><input id="hide-momo-pin" type="checkbox" name="hide_momo_pin" value="true" data-action="toggle-momo-mask" required><span>Hide MoMo pin – Yes</span></label><p class="note">${MOMO_NOTE}</p>
       <div class="form-grid">${field('Requested Loan Amount', 'requested_amount', 'number', '', 'min="2500" max="50000" step="0.01"')}${selectField('Do you have existing loan', 'existing_loan', ['Yes', 'No'])}${selectField('Loan tenure', 'loan_tenure', ['3', '6', '12', '24'], 'months')}</div>
       <label class="checkbox-field"><input type="checkbox" name="terms_accepted" required><span>${TERMS_TEXT}</span></label>
       <p id="loan-form-message" class="form-message" role="alert"></p><div class="form-actions"><button class="primary-button" type="submit">Submit application ${icon('arrow', 17)}</button><button class="secondary-button" type="button" data-action="navigate" data-view="home">Cancel</button></div>
@@ -301,7 +306,7 @@
     const { data, error } = await db.from('loan_applications').select('*').order('created_at', { ascending: false });
     if (error) throw error;
     state.cache.customerApplications = data || [];
-    main.innerHTML = `<div class="dashboard-page"><div class="page-intro"><div><p class="eyebrow">YOUR RECORDS</p><h1>My Applications</h1><p>Review the applications submitted from your account.</p></div><button class="primary-button" type="button" data-action="navigate" data-view="apply">Apply Now ${icon('plus', 17)}</button></div><div class="panel table-shell"><table class="data-table"><thead><tr><th>Reference</th><th>Purpose</th><th>Amount</th><th>Submitted</th><th>Status</th><th></th></tr></thead><tbody>${data?.length ? data.map(application => `<tr><td><strong>${shortId(application.id)}</strong></td><td>${escapeHTML(application.loan_purpose)}</td><td class="amount">${money(application.requested_amount)}</td><td>${dateText(application.created_at)}</td><td>${statusPill(application.status)}</td><td><button class="secondary-button" type="button" data-action="view-application" data-id="${attr(application.id)}">View</button></td></tr>`).join('') : `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">${icon('file', 22)}</div><p>No applications yet.</p><button class="primary-button" type="button" data-action="navigate" data-view="apply">Apply Now ${icon('arrow', 17)}</button></div></td></tr>`}</tbody></table></div></div>`;
+    main.innerHTML = `<div class="dashboard-page"><div class="page-intro"><div><p class="eyebrow">YOUR RECORDS</p><h1>My Applications</h1><p>Review the applications submitted from your account.</p></div><button class="primary-button" type="button" data-action="navigate" data-view="apply">Apply Now ${icon('plus', 17)}</button></div><div class="panel table-shell"><table class="data-table"><thead><tr><th>Reference</th><th>Purpose</th><th>Amount</th><th>Submitted</th><th>Status</th><th></th></tr></thead><tbody>${data?.length ? data.map(application => `<tr><td><strong>${shortId(application.id)}</strong></td><td>${escapeHTML(application.loan_purpose)}</td><td class="amount">${money(application.requested_amount)}</td><td>${dateText(application.created_at)}</td><td>${statusPill(displayedStatus(application))}</td><td><button class="secondary-button" type="button" data-action="view-application" data-id="${attr(application.id)}">View</button>${canCustomerDelete(application) ? `<button class="secondary-button danger-button" type="button" data-action="customer-delete-application" data-id="${attr(application.id)}">Delete</button>` : ''}</td></tr>`).join('') : `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">${icon('file', 22)}</div><p>No applications yet.</p><button class="primary-button" type="button" data-action="navigate" data-view="apply">Apply Now ${icon('arrow', 17)}</button></div></td></tr>`}</tbody></table></div></div>`;
   }
 
   async function renderProfile(main) {
@@ -379,12 +384,13 @@
   function managementCard(view, title, description, glyph, subview = '') { return `<button class="management-card" type="button" data-action="navigate" data-view="${attr(view)}" ${subview ? `data-subview="${attr(subview)}"` : ''}><span class="management-icon">${icon(glyph, 31)}</span><span class="management-copy"><h3>${escapeHTML(title)}</h3><p>${escapeHTML(description)}</p></span><span class="management-arrow">›</span></button>`; }
 
   async function renderAdminUsers(main) {
-    const [profiles, roles, suspensions] = await Promise.all([
+    const [profiles, roles, suspensions, approvedApplications] = await Promise.all([
       db.from('profiles').select('*').order('created_at', { ascending: false }),
       db.from('user_roles').select('user_id,role'),
-      db.from('suspended_accounts').select('*').order('suspended_at', { ascending: false })
+      db.from('suspended_accounts').select('*').order('suspended_at', { ascending: false }),
+      db.from('loan_applications').select('user_id').eq('status', 'Approved')
     ]);
-    const error = [profiles, roles, suspensions].find(result => result.error)?.error;
+    const error = [profiles, roles, suspensions, approvedApplications].find(result => result.error)?.error;
     if (error) throw error;
     state.cache.adminUsers = await Promise.all((profiles.data || []).map(async profile => {
       if (!profile.avatar_url) return profile;
@@ -393,6 +399,7 @@
     }));
     state.cache.adminRoles = Object.fromEntries((roles.data || []).map(row => [row.user_id, row.role]));
     state.cache.suspensions = suspensions.data || [];
+    state.cache.approvedUsers = new Set((approvedApplications.data || []).map(row => row.user_id));
     main.innerHTML = `<div class="dashboard-page"><div class="page-intro"><div><p class="eyebrow">ADMINISTRATION</p><h1>Manage Users</h1><p>Review permitted account information and account access state.</p></div><div class="search-box">${icon('search', 17)}<input type="search" data-search="users" placeholder="Search users" aria-label="Search users"></div></div><div class="data-list" id="admin-user-list">${renderUserCards(state.cache.adminUsers)}</div></div>`;
   }
 
@@ -402,7 +409,7 @@
       const suspension = state.cache.suspensions?.find(item => item.user_id === profile.id && item.active);
       const role = state.cache.adminRoles?.[profile.id] || 'customer';
       const canSuspend = profile.id !== state.user.id && role !== 'admin';
-      return `<article class="data-card user-card"><div class="data-card-head"><div class="user-identity">${profile._avatarUrl ? `<img class="avatar avatar-sm" src="${attr(profile._avatarUrl)}" alt="">` : `<span class="avatar avatar-sm">${escapeHTML((profile.full_name || 'U').slice(0, 1).toUpperCase())}</span>`}<div><h3>${escapeHTML(profile.full_name || 'Unnamed customer')}</h3><p>${escapeHTML(profile.email || 'No email')} · Joined ${dateText(profile.created_at)}</p></div></div><span class="status-pill ${suspension ? 'status-rejected' : 'status-approved'}">${suspension ? 'Suspended' : 'Active'}</span></div><dl class="detail-grid"><div class="detail-item"><dt>Phone</dt><dd>${escapeHTML(profile.phone || '—')}</dd></div><div class="detail-item"><dt>Address</dt><dd>${escapeHTML(profile.address || '—')}</dd></div><div class="detail-item"><dt>Role</dt><dd>${escapeHTML(role)}</dd></div><div class="detail-item"><dt>Profile ID</dt><dd>${escapeHTML(profile.id)}</dd></div></dl>${suspension ? `<p class="note">Reason: ${escapeHTML(suspension.reason || 'No reason provided')}<br>Suspended ${dateTimeText(suspension.suspended_at)}</p>` : ''}<div class="data-card-actions">${canSuspend && !suspension ? `<form class="inline-form" data-form="suspend" data-user-id="${attr(profile.id)}"><input name="reason" placeholder="Suspension reason" required><button class="secondary-button danger-button" type="submit">${icon('ban', 16)} Suspend</button></form>` : ''}${canSuspend && suspension ? `<button class="secondary-button" type="button" data-action="restore-user" data-id="${attr(profile.id)}">Restore access</button>` : ''}</div></article>`;
+      return `<article class="data-card user-card"><div class="data-card-head"><div class="user-identity">${profile._avatarUrl ? `<img class="avatar avatar-sm" src="${attr(profile._avatarUrl)}" alt="">` : `<span class="avatar avatar-sm">${escapeHTML((profile.full_name || 'U').slice(0, 1).toUpperCase())}</span>`}<div><h3>${escapeHTML(profile.full_name || 'Unnamed customer')} ${state.cache.approvedUsers?.has(profile.id) ? verifiedBadge() : ''}</h3><p>${escapeHTML(profile.email || 'No email')} · Joined ${dateText(profile.created_at)}</p></div></div><span class="status-pill ${suspension ? 'status-rejected' : 'status-approved'}">${suspension ? 'Suspended' : 'Active'}</span></div><dl class="detail-grid"><div class="detail-item"><dt>Phone</dt><dd>${escapeHTML(profile.phone || '—')}</dd></div><div class="detail-item"><dt>Address</dt><dd>${escapeHTML(profile.address || '—')}</dd></div><div class="detail-item"><dt>Role</dt><dd>${escapeHTML(role)}</dd></div><div class="detail-item"><dt>Profile ID</dt><dd>${escapeHTML(profile.id)}</dd></div></dl>${suspension ? `<p class="note">Reason: ${escapeHTML(suspension.reason || 'No reason provided')}<br>Suspended ${dateTimeText(suspension.suspended_at)}</p>` : ''}<div class="data-card-actions">${canSuspend && !suspension ? `<form class="inline-form" data-form="suspend" data-user-id="${attr(profile.id)}"><input name="reason" placeholder="Suspension reason" required><button class="secondary-button danger-button" type="submit">${icon('ban', 16)} Suspend</button></form>` : ''}${canSuspend && suspension ? `<button class="secondary-button" type="button" data-action="restore-user" data-id="${attr(profile.id)}">Restore access</button>` : ''}</div></article>`;
     }).join('');
   }
 
@@ -417,7 +424,7 @@
     const { data, error } = await db.from('loan_applications').select('*').order('created_at', { ascending: false });
     if (error) throw error;
     state.cache.adminApplications = data || [];
-    main.innerHTML = `<div class="dashboard-page"><div class="page-intro"><div><p class="eyebrow">ADMINISTRATION</p><h1>Loan Applications</h1><p>Inspect submitted details and update application status securely.</p></div></div><div class="panel table-shell"><table class="data-table"><thead><tr><th>Applicant</th><th>Purpose</th><th>Amount</th><th>Submitted</th><th>Status</th><th>Admin action</th></tr></thead><tbody>${data?.length ? data.map(application => `<tr><td><strong>${escapeHTML(application.full_name)}</strong><br><small>${escapeHTML(application.email)}</small></td><td>${escapeHTML(application.loan_purpose)}</td><td class="amount">${money(application.requested_amount)}</td><td>${dateText(application.created_at)}</td><td>${statusPill(application.status)}</td><td><div class="inline-form"><select data-status-select="${attr(application.id)}" aria-label="New status for ${shortId(application.id)}">${LOAN_STATUSES.map(status => `<option value="${attr(status)}" ${status === application.status ? 'selected' : ''}>${escapeHTML(status)}</option>`).join('')}</select><input data-reason-for="${attr(application.id)}" placeholder="Reason if rejected" value=""><button class="secondary-button" type="button" data-action="save-status" data-id="${attr(application.id)}">Save</button><button class="secondary-button" type="button" data-action="view-application" data-id="${attr(application.id)}">Details</button></div></td></tr>`).join('') : `<tr><td colspan="6"><div class="empty-state">No applications found.</div></td></tr>`}</tbody></table></div></div>`;
+    main.innerHTML = `<div class="dashboard-page"><div class="page-intro"><div><p class="eyebrow">ADMINISTRATION</p><h1>Loan Applications</h1><p>Inspect submitted details and update application status securely.</p></div></div><div class="panel table-shell"><table class="data-table"><thead><tr><th>Applicant</th><th>Purpose</th><th>Amount</th><th>Submitted</th><th>Status</th><th>Admin action</th></tr></thead><tbody>${data?.length ? data.map(application => `<tr><td><strong>${escapeHTML(application.full_name)} ${application.status === 'Approved' ? verifiedBadge() : ''}</strong><br><small>${escapeHTML(application.email)}</small></td><td>${escapeHTML(application.loan_purpose)}</td><td class="amount">${money(application.requested_amount)}</td><td>${dateText(application.created_at)}</td><td>${statusPill(displayedStatus(application))}</td><td><div class="inline-form"><select data-status-select="${attr(application.id)}" aria-label="New status for ${shortId(application.id)}" ${application.deleted_at ? 'disabled' : ''}>${LOAN_STATUSES.map(status => `<option value="${attr(status)}" ${status === application.status ? 'selected' : ''}>${escapeHTML(status)}</option>`).join('')}</select><input data-reason-for="${attr(application.id)}" placeholder="Reason if rejected" value="" ${application.deleted_at ? 'disabled' : ''}><button class="secondary-button" type="button" data-action="save-status" data-id="${attr(application.id)}" ${application.deleted_at ? 'disabled' : ''}>Save</button><button class="secondary-button" type="button" data-action="view-application" data-id="${attr(application.id)}">Details</button><button class="secondary-button danger-button" type="button" data-action="delete-application" data-id="${attr(application.id)}">Delete</button></div></td></tr>`).join('') : `<tr><td colspan="6"><div class="empty-state">No applications found.</div></td></tr>`}</tbody></table></div></div>`;
   }
 
   async function updateApplicationStatus(id) {
@@ -431,6 +438,29 @@
     notify('Application status updated.', 'success');
     await loadNotifications();
     await navigate('admin-applications');
+  }
+
+  async function deleteApplication(id) {
+    const confirmed = window.confirm(`Delete application ${shortId(id)} permanently? This also removes its status history and cannot be undone.`);
+    if (!confirmed) return;
+    const { error } = await db.rpc('admin_delete_application', { p_application_id: id });
+    if (error) { notify(safeError(error), 'error'); return; }
+    notify('Loan application deleted.', 'success');
+    await loadNotifications();
+    await navigate('admin-applications');
+  }
+
+  async function customerDeleteApplication(id) {
+    const application = (state.cache.customerApplications || []).find(item => item.id === id);
+    if (!application || !canCustomerDelete(application)) {
+      notify('Only approved or rejected applications can be deleted.', 'error');
+      return;
+    }
+    if (!window.confirm(`Mark application ${shortId(id)} as deleted? It will remain in your records as Deleted.`)) return;
+    const { error } = await db.rpc('customer_delete_application', { p_application_id: id });
+    if (error) { notify(safeError(error), 'error'); return; }
+    notify('Application marked as Deleted.', 'success');
+    await navigate('applications');
   }
 
   async function renderAdminReports(main) {
@@ -452,8 +482,8 @@
     }
     if (!application) return;
     const isAdmin = state.access.role === 'admin';
-    const momo = isAdmin ? application.momo_number : (application.momo_number ? '*'.repeat(String(application.momo_number).length) : '—');
-    const fields = [['Application ID', application.id], ['Status', application.status], ['Full name', application.full_name], ['Email', application.email], ['Phone', application.phone], ['Address', application.address], ['Date of birth', application.date_of_birth], ['Employment status', application.employment_status], ['Monthly income', money(application.monthly_income)], ['Loan purpose', application.loan_purpose], ['Description', application.description], ['MoMo pin', momo], ['Requested amount', money(application.requested_amount)], ['Existing loan', application.existing_loan], ['Loan tenure', `${application.loan_tenure} months`], ['Hide MoMo pin', application.hide_momo_number ? 'Yes' : 'No'], ['Terms accepted', application.terms_accepted ? `Yes · ${dateTimeText(application.terms_accepted_at)}` : 'No'], ['Submitted', dateTimeText(application.created_at)]];
+    const momo = isAdmin ? application.momo_pin : (application.momo_pin ? '*'.repeat(String(application.momo_pin).length) : '—');
+    const fields = [['Application ID', application.id], ['Status', displayedStatus(application)], ['Full name', application.full_name], ['Email', application.email], ['Phone', application.phone], ['Address', application.address], ['Date of birth', application.date_of_birth], ['Employment status', application.employment_status], ['Monthly income', money(application.monthly_income)], ['Loan purpose', application.loan_purpose], ['Description', application.description], ['MoMo pin', momo], ['Requested amount', money(application.requested_amount)], ['Existing loan', application.existing_loan], ['Loan tenure', `${application.loan_tenure} months`], ['Hide MoMo pin', application.hide_momo_pin ? 'Yes' : 'No'], ['Deleted at', application.deleted_at ? dateTimeText(application.deleted_at) : '—'], ['Terms accepted', application.terms_accepted ? `Yes · ${dateTimeText(application.terms_accepted_at)}` : 'No'], ['Submitted', dateTimeText(application.created_at)]];
     $('#modal-root').innerHTML = `<div class="modal-backdrop" data-action="close-modal"><section class="modal" role="dialog" aria-modal="true" aria-label="Application details"><div class="modal-head"><div><p class="eyebrow">APPLICATION DETAIL</p><h2>${shortId(application.id)}</h2></div><button class="close-button" type="button" data-action="close-modal" aria-label="Close">×</button></div><div class="detail-grid">${fields.map(([label, value]) => `<div class="detail-item"><dt>${escapeHTML(label)}</dt><dd>${label === 'Status' ? statusPill(value) : escapeHTML(value || '—')}</dd></div>`).join('')}</div></section></div>`;
   }
 
@@ -495,6 +525,13 @@
     if (input) input.value = state.selectedPurpose;
   }
 
+  function toggleMomoMask(checkbox) {
+    const display = $('#momo-pin-display');
+    const hidden = $('#momo-pin');
+    if (!display || !hidden) return;
+    display.value = checkbox.checked ? '*'.repeat(hidden.value.length) : hidden.value;
+  }
+
   document.addEventListener('click', async event => {
     const target = event.target.closest('[data-action]');
     if (!target) {
@@ -524,12 +561,18 @@
       await markNotification(target.dataset.id);
     } else if (action === 'select-purpose') {
       selectPurpose(target);
+    } else if (action === 'toggle-momo-mask') {
+      toggleMomoMask(target);
     } else if (action === 'view-application') {
       await openApplication(target.dataset.id);
     } else if (action === 'close-modal') {
       $('#modal-root').innerHTML = '';
     } else if (action === 'save-status') {
       await updateApplicationStatus(target.dataset.id);
+    } else if (action === 'delete-application') {
+      await deleteApplication(target.dataset.id);
+    } else if (action === 'customer-delete-application') {
+      await customerDeleteApplication(target.dataset.id);
     } else if (action === 'restore-user') {
       await restoreUser(target.dataset.id);
     } else if (action === 'save-avatar') {
@@ -565,8 +608,8 @@
   });
 
   document.addEventListener('input', event => {
-    if (event.target.id === 'momo-pin-display') {
-      if ($('#hide-momo-pin')?.checked) return;
+    if (event.target.id === 'momo-number-display') {
+      if ($('#hide-momo-number')?.checked) return;
       const raw = event.target.value.replace(/\D/g, '');
       event.target.value = raw;
       const hidden = $('#momo-pin');
@@ -581,11 +624,7 @@
 
   document.addEventListener('change', event => {
     if (event.target.id === 'hide-momo-pin') {
-      const display = $('#momo-pin-display');
-      const hidden = $('#momo-pin');
-      if (!display || !hidden) return;
-      if (event.target.checked) display.value = '*'.repeat(hidden.value.length);
-      else display.value = hidden.value;
+      toggleMomoMask(event.target);
     }
   });
 
