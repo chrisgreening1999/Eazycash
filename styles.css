@@ -389,3 +389,27 @@ h3 { font-size: 18px; }
 .admin-mode .profile-trigger .avatar { width: 46px; height: 46px; }
 .admin-mode .user-card .avatar-sm { width: 54px; height: 54px; font-size: 16px; }
 .verified-badge { display: inline-grid; place-items: center; width: 17px; height: 17px; margin-left: 4px; vertical-align: 2px; border-radius: 50%; background: #1877f2; color: #fff; font: 700 12px/1 Arial, sans-serif; letter-spacing: 0; }
+
+/* Keep the authenticated chrome visible while dashboard content scrolls underneath it. */
+html { scroll-padding-top: 96px; }
+.site-shell { scroll-margin-top: 96px; }
+.app-header { position: sticky; top: 0; z-index: 35; background: rgba(255,255,255,.96); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+.app-main { padding-bottom: 124px; }
+.bottom-nav { position: fixed; z-index: 40; }
+@media (max-width: 780px) {
+  .app-header { min-height: 76px; }
+  .app-main { padding-bottom: 136px; }
+}
+
+@media (max-width: 780px) {
+  .data-table td:last-child .inline-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+  .data-table td:last-child .inline-form select,
+  .data-table td:last-child .inline-form input { grid-column: 1 / -1; width: 100%; }
+  .data-table td:last-child .inline-form button { width: 100%; min-height: 42px; padding-inline: 8px; }
+  .table-shell { padding-bottom: 92px; }
+}
