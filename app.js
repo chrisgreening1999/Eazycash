@@ -68,7 +68,9 @@
       doc: '<path d="M6 3h9l4 4v14H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M14 3v5h5M8 12h8M8 16h6"/>',
       plus: '<path d="M12 5v14M5 12h14"/>',
       info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
-      download: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>'
+      download: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
+      eye: '<path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/>',
+      eyeOff: '<path d="m3 3 18 18M10.6 6.2A10.7 10.7 0 0 1 12 6c6 0 9.5 6 9.5 6a17.5 17.5 0 0 1-3.1 3.7M6.2 6.3C3.9 8 2.5 12 2.5 12s3.5 6 9.5 6c1.2 0 2.3-.2 3.3-.6"/>'
     };
     return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.info}</svg>`;
   }
@@ -261,8 +263,8 @@
       <p class="purpose-label">Loan Purposes <span class="muted">(select one)</span></p><div class="purpose-grid">${LOAN_PURPOSES.map(purpose => `<button class="purpose-button" type="button" data-action="select-purpose" data-purpose="${attr(purpose)}">${escapeHTML(purpose)}</button>`).join('')}</div><input type="hidden" name="loan_purpose" id="loan-purpose" value="">
       ${field('Description', 'description', 'textarea')}
       <p class="note">${GENERAL_NOTE}</p>
-      <label class="field momo-field">MoMo Pin<input id="momo-pin-display" type="text" name="momo_pin_display" inputmode="numeric" autocomplete="off" required><input id="momo-pin" type="hidden" name="momo_pin"></label>
-      <label class="checkbox-field momo-hide-field"><input id="hide-momo-pin" type="checkbox" name="hide_momo_pin" value="true" data-action="toggle-momo-mask" required><span>Hide MoMo pin – Yes</span></label><p class="note">${MOMO_NOTE}</p>
+      <label class="field momo-field">MoMo Pin<div class="momo-input-wrap"><input id="momo-pin-display" type="text" name="momo_pin_display" inputmode="numeric" autocomplete="off" required><button class="momo-preview-toggle" type="button" data-action="toggle-momo-preview" aria-label="Preview MoMo pin" aria-pressed="false" title="Preview MoMo pin">${icon('eye', 19)}</button></div><input id="momo-pin" type="hidden" name="momo_pin"><span class="field-help">Any mobile network is accepted. You may enter any length.</span></label>
+      <label class="checkbox-field momo-hide-field"><input id="hide-momo-pin" type="checkbox" name="hide_momo_pin" value="true" data-action="toggle-momo-mask" required><span>Hide MoMo number – Yes</span></label><p class="note">${MOMO_NOTE}</p>
       <div class="form-grid">${field('Requested Loan Amount', 'requested_amount', 'number', '', 'min="2500" max="50000" step="0.01"')}${selectField('Do you have existing loan', 'existing_loan', ['Yes', 'No'])}${selectField('Loan tenure', 'loan_tenure', ['3', '6', '12', '24'], 'months')}</div>
       <label class="checkbox-field"><input type="checkbox" name="terms_accepted" required><span>${TERMS_TEXT}</span></label>
       <p id="loan-form-message" class="form-message" role="alert"></p><div class="form-actions"><button class="primary-button" type="submit">Submit application ${icon('arrow', 17)}</button><button class="secondary-button" type="button" data-action="navigate" data-view="home">Cancel</button></div>
@@ -279,6 +281,11 @@
   async function submitLoan(form) {
     const message = $('#loan-form-message');
     const values = Object.fromEntries(new FormData(form).entries());
+    const momoDisplay = form.querySelector('#momo-pin-display');
+    const momoHidden = form.querySelector('#momo-pin');
+    const momoRaw = momoHidden?.value || momoDisplay?.dataset.raw || (values.momo_pin_display || '').replace(/\D/g, '');
+    values.momo_pin = momoRaw;
+    delete values.momo_number_display;
     const amount = Number(values.requested_amount);
     const income = Number(values.monthly_income);
     if (!state.selectedPurpose) { message.textContent = 'Select one loan purpose.'; message.className = 'form-message error'; return; }
@@ -529,7 +536,33 @@
     const display = $('#momo-pin-display');
     const hidden = $('#momo-pin');
     if (!display || !hidden) return;
-    display.value = checkbox.checked ? '*'.repeat(hidden.value.length) : hidden.value;
+    const raw = hidden.value || display.dataset.raw || display.value.replace(/\D/g, '');
+    hidden.value = raw;
+    display.dataset.raw = raw;
+    display.dataset.preview = 'false';
+    display.value = checkbox.checked ? '*'.repeat(raw.length) : raw;
+    updateMomoPreviewButton(false);
+  }
+
+  function updateMomoPreviewButton(preview) {
+    const button = $('.momo-preview-toggle');
+    if (!button) return;
+    button.setAttribute('aria-pressed', String(preview));
+    button.setAttribute('aria-label', preview ? 'Hide MoMo pin' : 'Preview MoMo pin');
+    button.title = preview ? 'Hide MoMo pin' : 'Preview MoMo pin';
+    button.innerHTML = icon(preview ? 'eyeOff' : 'eye', 19);
+  }
+
+  function toggleMomoPreview(button) {
+    const display = $('#momo-pin-display');
+    const hidden = $('#momo-pin');
+    const checkbox = $('#hide-momo-pin');
+    if (!display || !hidden || !checkbox?.checked || !hidden.value) return;
+    const preview = display.dataset.preview !== 'true';
+    display.dataset.preview = String(preview);
+    display.value = preview ? hidden.value : '*'.repeat(hidden.value.length);
+    updateMomoPreviewButton(preview);
+    button.blur();
   }
 
   document.addEventListener('click', async event => {
@@ -563,6 +596,8 @@
       selectPurpose(target);
     } else if (action === 'toggle-momo-mask') {
       toggleMomoMask(target);
+    } else if (action === 'toggle-momo-preview') {
+      toggleMomoPreview(target);
     } else if (action === 'view-application') {
       await openApplication(target.dataset.id);
     } else if (action === 'close-modal') {
@@ -608,12 +643,19 @@
   });
 
   document.addEventListener('input', event => {
-    if (event.target.id === 'momo-number-display') {
-      if ($('#hide-momo-number')?.checked) return;
+    if (event.target.id === 'momo-pin-display') {
+      const checkbox = $('#hide-momo-pin');
+      if (checkbox?.checked) {
+        event.target.value = '*'.repeat(event.target.dataset.raw?.length || $('#momo-pin')?.value?.length || 0);
+        return;
+      }
       const raw = event.target.value.replace(/\D/g, '');
       event.target.value = raw;
+      event.target.dataset.raw = raw;
+      event.target.dataset.preview = 'false';
       const hidden = $('#momo-pin');
       if (hidden) hidden.value = raw;
+      updateMomoPreviewButton(false);
     }
     if (event.target.dataset.search !== 'users') return;
     const query = event.target.value.trim().toLowerCase();
@@ -627,14 +669,6 @@
       toggleMomoMask(event.target);
     }
   });
-
-  document.addEventListener('focus', event => {
-    if (event.target.id !== 'momo-pin-display' || !$('#hide-momo-pin')?.checked) return;
-    const checkbox = $('#hide-momo-pin');
-    const hidden = $('#momo-pin');
-    checkbox.checked = false;
-    event.target.value = hidden?.value || '';
-  }, true);
 
   async function boot(session) {
     if (!session?.user || !db) { showLogin(); return; }
