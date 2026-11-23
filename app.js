@@ -9,7 +9,7 @@
 
   const LOAN_PURPOSES = ['Home Improvement', 'Debt Consolidation', 'Education', 'Auto Purchase', 'Business', 'Medicals', 'Personal', 'Others'];
   const LOAN_STATUSES = ['Pending', 'Under Review', 'Approved', 'Rejected'];
-  const TERMS_TEXT = 'Acknowledge and confirm that all the information you provided on this form is accurate to the best of your knowledge and you understand that any false statements or misrepresentation will result in blacklisting, and such actions will be reported to the financial law enforcement authorities that the information provided is true and I agree to the terms and conditions. The the loan interest rate is 1%';
+  const TERMS_TEXT = 'Acknowledge and confirm that all the information you provided on this form is accurate to the best of your knowledge and you understand that any false statements or misrepresentation will result in blacklisting, and such actions will be reported to the financial law enforcement authorities that the information provided is true and I agree to the terms and conditions.';
   const GENERAL_NOTE = 'Please bear in mind that your account information verification required at the next stages are necessary to complete your MoMo account for loan disbursement to be initiated. Rest assured the data share will not be retained or disclose to any personal or third-party entities. If you proceed to submit your application that means you agree to our terms and conditions and data sharing policy.';
   const MOMO_NOTE = 'Rest assured, your number will be used solely for verification purposes, safekeeping of company capital and will remain confidential. Please be informed that your credentials are securely stored and will not be disclosed to any third party';
 
@@ -288,7 +288,7 @@
   function renderApply(main) {
     state.selectedPurpose = '';
     const p = state.profile;
-    main.innerHTML = `<div class="dashboard-page form-panel"><div class="page-intro"><div><p class="eyebrow">NEW APPLICATION</p><h1>Apply for a loan</h1><p>Tell us a little about yourself and what you need.</p></div></div><form class="loan-form" data-form="loan">
+    main.innerHTML = `<div class="dashboard-page form-panel"><div class="page-intro"><div><p class="eyebrow">NEW APPLICATION</p><h1>Apply for a loan</h1><p>Tell us a little about yourself and what you need.</p><p><strong>The loan interest rate is 1%.</strong></p></div></div><form class="loan-form" data-form="loan">
       <div class="form-grid">${field('Name', 'full_name', 'text', p.full_name || displayName())}${field('Email', 'email', 'email', p.email || state.user?.email || '')}<label class="field">Phone Number<input name="phone" type="tel" value="${attr(p.phone || '')}" inputmode="numeric" pattern="(024|054|055|059)[0-9]{7}" maxlength="10" required><small>Only a valid 10-digit MTN number is accepted (for example, 0241234567).</small></label>${field('Address', 'address', 'text', p.address || '')}${field('Date of Birth', 'date_of_birth', 'date', p.date_of_birth || '')}${field('Employment Status', 'employment_status')}${field('Monthly Income', 'monthly_income', 'number', '', 'min="0" step="0.01"')}</div>
       <p class="purpose-label">Loan Purposes <span class="muted">(select one)</span></p><div class="purpose-grid">${LOAN_PURPOSES.map(purpose => `<button class="purpose-button" type="button" data-action="select-purpose" data-purpose="${attr(purpose)}">${escapeHTML(purpose)}</button>`).join('')}</div><input type="hidden" name="loan_purpose" id="loan-purpose" value="">
       ${field('Description', 'description', 'textarea')}
