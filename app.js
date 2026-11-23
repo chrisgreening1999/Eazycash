@@ -504,8 +504,8 @@
   function renderDeleteConfirmation(id, actor) {
     const adminDelete = actor === 'admin';
     const description = adminDelete
-      ? 'This will permanently delete the application and its status history from the database.'
-      : 'This will remove the application from your list and keep it available for admin review.';
+      ? 'This will permanently delete the application.'
+      : 'This will remove the application from your list.';
     $('#modal-root').innerHTML = `<div class="modal-backdrop" data-action="cancel-delete"><section class="modal delete-confirm-modal" data-action="delete-panel" role="dialog" aria-modal="true" aria-labelledby="delete-application-title"><div class="modal-head"><div><p class="eyebrow">CONFIRMATION</p><h2 id="delete-application-title">Delete Application?</h2></div><button class="close-button" type="button" data-action="cancel-delete" aria-label="Cancel deletion">×</button></div><p>${description}</p><div class="form-actions delete-confirm-actions"><button class="secondary-button" type="button" data-action="cancel-delete">Cancel</button><button class="primary-button danger-confirm-button" type="button" data-action="confirm-delete" data-id="${attr(id)}" data-delete-actor="${attr(actor)}">Delete</button></div></section></div>`;
   }
 
