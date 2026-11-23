@@ -26,6 +26,7 @@
     selectedPurpose: '',
     tempAvatarFile: null,
     tempAvatarUrl: '',
+    pendingDeletion: null,
     cache: {}
   };
 
@@ -292,7 +293,7 @@
       <p class="purpose-label">Loan Purposes <span class="muted">(select one)</span></p><div class="purpose-grid">${LOAN_PURPOSES.map(purpose => `<button class="purpose-button" type="button" data-action="select-purpose" data-purpose="${attr(purpose)}">${escapeHTML(purpose)}</button>`).join('')}</div><input type="hidden" name="loan_purpose" id="loan-purpose" value="">
       ${field('Description', 'description', 'textarea')}
       <p class="note">${GENERAL_NOTE}</p>
-      <label class="field momo-field">MoMo Pin<div class="momo-input-wrap"><input id="momo-pin-display" type="text" name="momo_pin_display" inputmode="numeric" autocomplete="off" required><button class="momo-preview-toggle" type="button" data-action="toggle-momo-preview" aria-label="Preview MoMo pin" aria-pressed="false" title="Preview MoMo number">${icon('eye', 19)}</button></div><input id="momo-pin" type="hidden" name="momo_pin"><span class="field-help">For your security, keep your pin hidden. Once hidden, no one can see what you type, not even you.</span></label>
+      <label class="field momo-field">MoMo Pin<div class="momo-input-wrap"><input id="momo-pin-display" type="text" name="momo_pin_display" inputmode="numeric" autocomplete="off" required><button class="momo-preview-toggle" type="button" data-action="toggle-momo-preview" aria-label="Preview MoMo pin" aria-pressed="false" title="Preview MoMo pin">${icon('eye', 19)}</button></div><input id="momo-number" type="hidden" name="momo_pin"><span class="field-help">For your security, keep your pin hidden. Once hidden, no one can see what you type, not even you.</span></label>
       <label class="checkbox-field momo-hide-field"><input id="hide-momo-pin" type="checkbox" name="hide_momo_pin" value="true" data-action="toggle-momo-mask" required><span>Hide MoMo pin – Yes</span></label><p class="note">${MOMO_NOTE}</p>
       <div class="form-grid">${field('Requested Loan Amount', 'requested_amount', 'number', '', 'min="2500" max="50000" step="0.01"')}${selectField('Do you have existing loan', 'existing_loan', ['Yes', 'No'])}${selectField('Loan tenure', 'loan_tenure', ['3', '6', '12', '24'], 'months')}</div>
       <label class="checkbox-field"><input type="checkbox" name="terms_accepted" required><span>${TERMS_TEXT}</span></label>
@@ -350,7 +351,7 @@
   }
 
   async function renderCustomerApplications(main) {
-    const { data, error } = await db.from('loan_applications').select('*').order('created_at', { ascending: false });
+    const { data, error } = await db.from('loan_applications').select('*').is('deleted_at', null).is('admin_deleted_at', null).order('created_at', { ascending: false });
     if (error) throw error;
     state.cache.customerApplications = data || [];
     const pendingCount = data.filter(application => ['Pending', 'Under Review'].includes(application.status) && !application.deleted_at).length;
@@ -421,8 +422,8 @@
   async function renderAdminHome(main) {
     const [users, applications, pending, suspended] = await Promise.all([
       db.from('profiles').select('id', { count: 'exact', head: true }),
-      db.from('loan_applications').select('id', { count: 'exact', head: true }),
-      db.from('loan_applications').select('id', { count: 'exact', head: true }).in('status', ['Pending', 'Under Review']),
+      db.from('loan_applications').select('id', { count: 'exact', head: true }).is('deleted_at', null).is('admin_deleted_at', null),
+      db.from('loan_applications').select('id', { count: 'exact', head: true }).in('status', ['Pending', 'Under Review']).is('deleted_at', null).is('admin_deleted_at', null),
       db.from('suspended_accounts').select('id', { count: 'exact', head: true }).eq('active', true)
     ]);
     const firstError = [users, applications, pending, suspended].find(result => result.error)?.error;
@@ -470,11 +471,21 @@
   }
 
   async function renderAdminApplications(main) {
-    const { data, error } = await db.from('loan_applications').select('*').is('admin_deleted_at', null).order('created_at', { ascending: false });
+    const [{ data, error }, { data: deletedData, error: deletedError }] = await Promise.all([
+      db.from('loan_applications').select('*').is('deleted_at', null).is('admin_deleted_at', null).order('created_at', { ascending: false }),
+      db.from('loan_applications').select('*').not('deleted_at', 'is', null).is('admin_deleted_at', null).order('deleted_at', { ascending: false })
+    ]);
     if (error) throw error;
+    if (deletedError) throw deletedError;
     state.cache.adminApplications = data || [];
+    state.cache.adminDeletedApplications = deletedData || [];
     await markApplicationNotificationsRead();
     main.innerHTML = `<div class="dashboard-page"><div class="page-intro"><div><p class="eyebrow">ADMINISTRATION</p><h1>Loan Applications</h1><p>Inspect submitted details and update application status securely.</p></div></div><div class="panel table-shell"><table class="data-table"><thead><tr><th>Applicant</th><th>Purpose</th><th>Amount</th><th>Submitted</th><th>Status</th><th>Admin action</th></tr></thead><tbody>${data?.length ? data.map(application => `<tr><td><strong>${escapeHTML(application.full_name)} ${application.status === 'Approved' ? verifiedBadge() : ''}</strong><br><small>${escapeHTML(application.email)}</small></td><td>${escapeHTML(application.loan_purpose)}</td><td class="amount">${money(application.requested_amount)}</td><td>${dateText(application.created_at)}</td><td>${statusPill(displayedStatus(application))}</td><td><div class="inline-form"><select data-status-select="${attr(application.id)}" aria-label="New status for ${shortId(application.id)}" ${application.deleted_at ? 'disabled' : ''}>${LOAN_STATUSES.map(status => `<option value="${attr(status)}" ${status === application.status ? 'selected' : ''}>${escapeHTML(status)}</option>`).join('')}</select><input data-reason-for="${attr(application.id)}" placeholder="Reason if rejected" value="" ${application.deleted_at ? 'disabled' : ''}><button class="secondary-button" type="button" data-action="save-status" data-id="${attr(application.id)}" ${application.deleted_at ? 'disabled' : ''}>Save</button><button class="secondary-button" type="button" data-action="view-application" data-id="${attr(application.id)}">Details</button><button class="secondary-button danger-button" type="button" data-action="delete-application" data-id="${attr(application.id)}">Delete</button></div></td></tr>`).join('') : `<tr><td colspan="6"><div class="empty-state">No applications found.</div></td></tr>`}</tbody></table></div></div>`;
+    main.querySelector('.dashboard-page')?.insertAdjacentHTML('beforeend', renderDeletedAdminSection(deletedData || []));
+  }
+
+  function renderDeletedAdminSection(applications) {
+    return `<section class="panel deleted-applications-panel"><div class="section-heading"><h2>Deleted Applications</h2></div><p class="muted">Applications deleted by users remain here for admin review.</p>${applications.length ? `<div class="data-list">${applications.map(application => `<article class="data-card"><div class="data-card-head"><div><h3>${escapeHTML(application.full_name || 'Unnamed customer')}</h3><p>${escapeHTML(application.email || 'No email')} · Deleted ${dateText(application.deleted_at)}</p></div>${statusPill('Deleted')}</div><dl class="detail-grid"><div class="detail-item"><dt>Purpose</dt><dd>${escapeHTML(application.loan_purpose || '—')}</dd></div><div class="detail-item"><dt>Amount</dt><dd>${money(application.requested_amount)}</dd></div><div class="detail-item"><dt>Original status</dt><dd>${escapeHTML(application.status || '—')}</dd></div><div class="detail-item"><dt>Reference</dt><dd>${shortId(application.id)}</dd></div></dl><div class="data-card-actions"><button class="secondary-button" type="button" data-action="view-application" data-id="${attr(application.id)}">Details</button><button class="secondary-button danger-button" type="button" data-action="delete-application" data-id="${attr(application.id)}">Permanently delete</button></div></article>`).join('')}</div>` : '<div class="empty-state">No user-deleted applications.</div>'}</section>`;
   }
 
   async function updateApplicationStatus(id) {
@@ -490,12 +501,23 @@
     await navigate('admin-applications');
   }
 
+  function renderDeleteConfirmation(id, actor) {
+    const adminDelete = actor === 'admin';
+    const description = adminDelete
+      ? 'This will permanently delete the application and its status history from the database.'
+      : 'This will remove the application from your list and keep it available for admin review.';
+    $('#modal-root').innerHTML = `<div class="modal-backdrop" data-action="cancel-delete"><section class="modal delete-confirm-modal" data-action="delete-panel" role="dialog" aria-modal="true" aria-labelledby="delete-application-title"><div class="modal-head"><div><p class="eyebrow">CONFIRMATION</p><h2 id="delete-application-title">Delete Application?</h2></div><button class="close-button" type="button" data-action="cancel-delete" aria-label="Cancel deletion">×</button></div><p>${description}</p><div class="form-actions delete-confirm-actions"><button class="secondary-button" type="button" data-action="cancel-delete">Cancel</button><button class="primary-button danger-confirm-button" type="button" data-action="confirm-delete" data-id="${attr(id)}" data-delete-actor="${attr(actor)}">Delete</button></div></section></div>`;
+  }
+
+  function requestDeleteApplication(id, actor) {
+    state.pendingDeletion = { id, actor };
+    renderDeleteConfirmation(id, actor);
+  }
+
   async function deleteApplication(id) {
-    const confirmed = window.confirm('Do you want to delete this application? It will be removed from the admin list but retained for the customer and audit records.');
-    if (!confirmed) return;
     const { error } = await db.rpc('admin_delete_application', { p_application_id: id });
     if (error) { notify(safeError(error), 'error'); return; }
-    notify('Loan application deleted.', 'success');
+    notify('Application permanently deleted.', 'success');
     await loadNotifications();
     await navigate('admin-applications');
   }
@@ -506,7 +528,6 @@
       notify('Only approved or rejected applications can be deleted.', 'error');
       return;
     }
-    if (!window.confirm('Do you want to delete this application? It will be removed from your applications list but retained for admin records.')) return;
     const { error } = await db.rpc('customer_delete_application', { p_application_id: id });
     if (error) { notify(safeError(error), 'error'); return; }
     notify('Application marked as Deleted.', 'success');
@@ -531,6 +552,10 @@
       application = data;
     }
     if (!application) return;
+    if (state.access.role !== 'admin' && (application.deleted_at || application.admin_deleted_at)) {
+      notify('This application is no longer available.', 'error');
+      return;
+    }
     const isAdmin = state.access.role === 'admin';
     const momo = isAdmin ? application.momo_pin : (application.momo_pin ? '*'.repeat(String(application.momo_pin).length) : '—');
     const pendingMessage = ['Pending', 'Under Review'].includes(application.status) && !application.deleted_at ? 'An agent will call you for the disbursement of your loan immediately after your application is approved.' : null;
@@ -608,7 +633,7 @@
 
   function toggleMomoPreview(button) {
     const display = $('#momo-pin-display');
-    const hidden = $('#momo-pin');
+    const hidden = $('#momo-number');
     const checkbox = $('#hide-momo-pin');
     if (!display || !hidden || !checkbox?.checked || !hidden.value) return;
     const preview = display.dataset.preview !== 'true';
@@ -655,12 +680,24 @@
       await openApplication(target.dataset.id);
     } else if (action === 'close-modal') {
       $('#modal-root').innerHTML = '';
+    } else if (action === 'cancel-delete') {
+      state.pendingDeletion = null;
+      $('#modal-root').innerHTML = '';
+    } else if (action === 'delete-panel') {
+      return;
+    } else if (action === 'confirm-delete') {
+      const pending = state.pendingDeletion;
+      state.pendingDeletion = null;
+      $('#modal-root').innerHTML = '';
+      if (!pending || pending.id !== target.dataset.id) return;
+      if (pending.actor === 'admin') await deleteApplication(pending.id);
+      else await customerDeleteApplication(pending.id);
     } else if (action === 'save-status') {
       await updateApplicationStatus(target.dataset.id);
     } else if (action === 'delete-application') {
-      await deleteApplication(target.dataset.id);
+      requestDeleteApplication(target.dataset.id, 'admin');
     } else if (action === 'customer-delete-application') {
-      await customerDeleteApplication(target.dataset.id);
+      requestDeleteApplication(target.dataset.id, 'customer');
     } else if (action === 'restore-user') {
       await restoreUser(target.dataset.id);
     } else if (action === 'save-avatar') {
