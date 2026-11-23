@@ -181,6 +181,10 @@ h3 { font-size: 18px; }
 .management-arrow { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; color: var(--deep-green); background: #e0f8d7; font-size: 18px; }
 .welcome-notice { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding: 13px 16px; border: 1px solid #d8ebcb; border-radius: 13px; color: #356040; background: #e4f7d9; font-size: 13px; }
 .welcome-notice svg { color: #168b3d; flex: 0 0 auto; }
+.pending-loan-notice { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 16px; padding: 14px 16px; border: 1px solid #c9def1; border-radius: 14px; color: #245776; background: #edf7ff; }
+.pending-loan-notice svg { flex: 0 0 auto; margin-top: 1px; color: #2488ed; }
+.pending-loan-notice strong { display: block; margin-bottom: 3px; color: #194864; font-size: 13px; }
+.pending-loan-notice p { margin: 0; font-size: 12px; line-height: 1.45; }
 .page-intro { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin: 5px 0 22px; }
 .page-intro p { margin-bottom: 0; color: var(--muted); }
 .search-box { min-width: min(300px, 100%); position: relative; }
@@ -250,11 +254,16 @@ h3 { font-size: 18px; }
 .close-button:hover { color: var(--dark); background: var(--mint); }
 .toast-region { position: fixed; right: 18px; bottom: 96px; z-index: 120; display: grid; gap: 8px; width: min(360px, calc(100vw - 36px)); }
 .toast { padding: 13px 15px; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); background: #fff; box-shadow: var(--shadow); font-size: 13px; }
+.toast.persistent { display: flex; align-items: flex-start; gap: 12px; }
+.toast.persistent > span { flex: 1; }
+.toast-close { width: 25px; height: 25px; flex: 0 0 auto; display: grid; place-items: center; margin: -4px -6px 0 0; border: 0; border-radius: 50%; color: var(--muted); background: transparent; font-size: 21px; line-height: 1; }
+.toast-close:hover, .toast-close:focus-visible { color: var(--dark); background: var(--mint); outline: none; }
 .toast.error { border-color: #f0caca; color: #9e2f2f; }
 .toast.success { border-color: #cce6ca; color: #26753a; }
 
 .bottom-nav { position: fixed; z-index: 40; left: 50%; bottom: 18px; width: min(calc(100% - 36px), 880px); min-height: 75px; padding: 7px 12px; transform: translateX(-50%); display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; border: 1px solid #e4eae4; border-radius: 24px; background: rgba(255,255,255,.96); box-shadow: var(--shadow); backdrop-filter: blur(12px); }
 .bottom-nav button { min-width: 0; padding: 6px 4px 4px; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; border-radius: 14px; color: #59625d; background: transparent; font-size: 11px; font-weight: 600; }
+.nav-badge { position: absolute; top: 2px; right: 19%; min-width: 18px; height: 18px; padding: 0 4px; display: grid; place-items: center; border-radius: 10px; color: #fff; background: var(--red); border: 2px solid #fff; font-size: 9px; line-height: 1; }
 .bottom-nav button:hover { color: var(--green); background: #f2faef; }
 .bottom-nav button.active { color: var(--deep-green); }
 .bottom-nav button.active::after { content: ''; position: absolute; left: 18%; right: 18%; bottom: -1px; height: 4px; border-radius: 5px 5px 0 0; background: var(--green); }
@@ -394,7 +403,8 @@ h3 { font-size: 18px; }
 
 .admin-mode .profile-trigger .avatar { width: 46px; height: 46px; }
 .admin-mode .user-card .avatar-sm { width: 54px; height: 54px; font-size: 16px; }
-.verified-badge { display: inline-grid; place-items: center; width: 17px; height: 17px; margin-left: 4px; vertical-align: 2px; border-radius: 50%; background: #1877f2; color: #fff; font: 700 12px/1 Arial, sans-serif; letter-spacing: 0; }
+.verified-badge { display: inline-grid; place-items: center; width: 17px; height: 17px; margin-left: 4px; vertical-align: 2px; border-radius: 50%; background: #1877f2; color: #fff; box-shadow: inset 0 -1px 0 rgba(0,0,0,.12); }
+.verified-badge svg { display: block; }
 
 /* Keep the authenticated chrome visible while dashboard content scrolls underneath it. */
 html { scroll-padding-top: 96px; }
