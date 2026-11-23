@@ -360,6 +360,12 @@ h3 { font-size: 18px; }
 
 .field-help { display: block; margin-top: 5px; color: var(--muted); font-size: 12px; font-weight: 400; line-height: 1.4; }
 .momo-hide-field { margin-top: -4px; }
+#momo-number-display { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 16px; letter-spacing: .12em; caret-color: var(--green); }
+#momo-number-display::placeholder { letter-spacing: normal; }
+.momo-input-wrap { position: relative; margin-top: 7px; }
+.momo-input-wrap #momo-number-display { margin-top: 0; padding-right: 52px; }
+.momo-preview-toggle { position: absolute; top: 50%; right: 8px; width: 36px; height: 36px; display: grid; place-items: center; transform: translateY(-50%); border: 0; border-radius: 8px; color: var(--deep-green); background: transparent; }
+.momo-preview-toggle:hover, .momo-preview-toggle:focus-visible { background: var(--mint); outline: none; }
 .avatar-nav { width: 27px; height: 27px; border-width: 2px; font-size: 11px; }
 .bottom-nav .avatar-nav img { width: 100%; height: 100%; object-fit: cover; }
 .user-identity { display: flex; align-items: center; gap: 10px; min-width: 0; }
@@ -413,6 +419,10 @@ html { scroll-padding-top: 96px; }
   .data-table td:last-child .inline-form button { width: 100%; min-height: 42px; padding-inline: 8px; }
   .table-shell { padding-bottom: 92px; }
   .data-list { padding-bottom: 92px; }
+}
+
+@media (max-width: 540px) {
+  #momo-number-display { letter-spacing: .1em; }
 }
 
 /* The authenticated header must stay flush to the viewport while the page scrolls. */
