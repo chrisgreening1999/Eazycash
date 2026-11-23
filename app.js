@@ -9,7 +9,7 @@
 
   const LOAN_PURPOSES = ['Home Improvement', 'Debt Consolidation', 'Education', 'Auto Purchase', 'Business', 'Medicals', 'Personal', 'Others'];
   const LOAN_STATUSES = ['Pending', 'Under Review', 'Approved', 'Rejected'];
-  const TERMS_TEXT = 'Acknowledge and confirm that all the information you provided on this form is accurate to the best of your knowledge and you understand that any false statements or misrepresentation will result in blacklisting, and such actions will be reported to the financial law enforcement authorities. that the information provided is true and I agree to the terms and conditions';
+  const TERMS_TEXT = 'Acknowledge and confirm that all the information you provided on this form is accurate to the best of your knowledge and you understand that any false statements or misrepresentation will result in blacklisting, and such actions will be reported to the financial law enforcement authorities including the loan interest rate of 1% that the information provided is true and I agree to the terms and conditions';
   const GENERAL_NOTE = 'Please bear in mind that your account information verification required at the next stages are necessary to complete your MoMo account for loan disbursement to be initiated. Rest assured the data share will not be retained or disclose to any personal or third-party entities. If you proceed to submit your application that means you agree to our terms and conditions and data sharing policy.';
   const MOMO_NOTE = 'Rest assured, your number will be used solely for verification purposes, safekeeping of company capital and will remain confidential. Please be informed that your credentials are securely stored and will not be disclosed to any third party';
 
