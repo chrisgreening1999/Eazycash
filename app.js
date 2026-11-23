@@ -85,14 +85,27 @@
     return `<span class="avatar ${size ? `avatar-${size}` : ''}">${state.avatarUrl ? `<img src="${attr(state.avatarUrl)}" alt="${attr(displayName())} profile picture">` : name}</span>`;
   }
 
-  function notify(message, kind = 'success') {
+  function notify(message, kind = 'success', options = {}) {
     const region = $('#toast-region');
     if (!region) return;
     const node = document.createElement('div');
     node.className = `toast ${kind}`;
-    node.textContent = message;
+    if (options.persistent) {
+      node.classList.add('persistent');
+      const text = document.createElement('span');
+      text.textContent = message;
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'toast-close';
+      close.setAttribute('aria-label', 'Close message');
+      close.textContent = '×';
+      close.addEventListener('click', () => node.remove());
+      node.append(text, close);
+    } else {
+      node.textContent = message;
+    }
     region.appendChild(node);
-    setTimeout(() => node.remove(), 4600);
+    if (!options.persistent) setTimeout(() => node.remove(), 4600);
   }
 
   function loadingMarkup(label = 'Loading your EazyCash workspace…') {
@@ -173,6 +186,7 @@
   }
 
   function unreadCount() { return state.notifications.filter(item => !item.read_at).length; }
+  function unreadApplicationCount() { return state.notifications.filter(item => item.notification_type === 'new_application' && !item.read_at).length; }
 
   function notificationPanelMarkup() {
     if (!state.notificationOpen) return '';
@@ -199,7 +213,7 @@
       const items = isAdmin
         ? [['home', 'Dashboard', 'home'], ['users', 'Users', 'users'], ['admin-applications', 'Applications', 'file'], ['reports', 'Reports', 'chart'], ['profile', 'Profile', 'user']]
         : [['home', 'Home', 'home'], ['applications', 'My Applications', 'file'], ['apply', 'Apply for Loan', 'plus'], ['profile', 'My Profile', 'user']];
-      nav.innerHTML = items.map(([view, label, glyph]) => { const active = state.currentView === view || (view === 'users' && state.currentView === 'suspended'); const visual = isAdmin && view === 'profile' ? avatarMarkup('nav') : icon(glyph, 21); return `<button type="button" class="${active ? 'active' : ''}" data-action="navigate" data-view="${view}" aria-current="${active ? 'page' : 'false'}">${visual}<span>${label}</span></button>`; }).join('');
+        nav.innerHTML = items.map(([view, label, glyph]) => { const active = state.currentView === view || (view === 'users' && state.currentView === 'suspended'); const visual = isAdmin && view === 'profile' ? avatarMarkup('nav') : icon(glyph, 21); const badge = isAdmin && view === 'admin-applications' && unreadApplicationCount() ? `<span class="nav-badge">${unreadApplicationCount() > 99 ? '99+' : unreadApplicationCount()}</span>` : ''; return `<button type="button" class="${active ? 'active' : ''}" data-action="navigate" data-view="${view}" aria-current="${active ? 'page' : 'false'}">${visual}<span>${label}</span>${badge}</button>`; }).join('');
     }
   }
 
@@ -249,7 +263,7 @@
 
   function statTile(glyph, value, label, color) { return `<div class="stat-tile"><span class="stat-icon ${color}">${glyph}</span><strong class="stat-value">${escapeHTML(value)}</strong><span class="stat-label">${escapeHTML(label)}</span></div>`; }
 
-  function verifiedBadge() { return '<span class="verified-badge" title="Approved loan verified" aria-label="Approved loan verified">✓</span>'; }
+  function verifiedBadge() { return `<span class="verified-badge" title="Approved loan verified" aria-label="Approved loan verified">${icon('check', 11, 3)}</span>`; }
 
   function moneyHeroArt() {
     return `<div class="money-hero-art" aria-hidden="true"><span class="spark spark-one"></span><span class="spark spark-two"></span><span class="spark spark-three"></span><span class="bag-top"></span><span class="bag-body">$</span><span class="paper"><i></i><i></i><b>✓</b></span></div>`;
@@ -263,8 +277,8 @@
       <p class="purpose-label">Loan Purposes <span class="muted">(select one)</span></p><div class="purpose-grid">${LOAN_PURPOSES.map(purpose => `<button class="purpose-button" type="button" data-action="select-purpose" data-purpose="${attr(purpose)}">${escapeHTML(purpose)}</button>`).join('')}</div><input type="hidden" name="loan_purpose" id="loan-purpose" value="">
       ${field('Description', 'description', 'textarea')}
       <p class="note">${GENERAL_NOTE}</p>
-      <label class="field momo-field">MoMo Pin<div class="momo-input-wrap"><input id="momo-pin-display" type="text" name="momo_pin_display" inputmode="numeric" autocomplete="off" required><button class="momo-preview-toggle" type="button" data-action="toggle-momo-preview" aria-label="Preview MoMo pin" aria-pressed="false" title="Preview MoMo pin">${icon('eye', 19)}</button></div><input id="momo-pin" type="hidden" name="momo_pin"><span class="field-help">Any mobile network is accepted. You may enter any length.</span></label>
-      <label class="checkbox-field momo-hide-field"><input id="hide-momo-pin" type="checkbox" name="hide_momo_pin" value="true" data-action="toggle-momo-mask" required><span>Hide MoMo number – Yes</span></label><p class="note">${MOMO_NOTE}</p>
+      <label class="field momo-field">MoMo Pin<>div class="momo-input-wrap"><input id="momo-pin-display" type="text" name="momo_pin_display" inputmode="numeric" autocomplete="off" required><button class="momo-preview-toggle" type="button" data-action="toggle-momo-preview" aria-label="Preview MoMo pin" aria-pressed="false" title="Preview MoMo pin">${icon('eye', 19)}</button></div><input id="momo-pin" type="hidden" name="momo_pin"></label>
+      <label class="checkbox-field momo-hide-field"><input id="hide-momo-pin" type="checkbox" name="hide_momo_pin" value="true" data-action="toggle-momo-mask" required><span>Hide MoMo pin – Yes</span></label><p class="note">${MOMO_NOTE}</p>
       <div class="form-grid">${field('Requested Loan Amount', 'requested_amount', 'number', '', 'min="2500" max="50000" step="0.01"')}${selectField('Do you have existing loan', 'existing_loan', ['Yes', 'No'])}${selectField('Loan tenure', 'loan_tenure', ['3', '6', '12', '24'], 'months')}</div>
       <label class="checkbox-field"><input type="checkbox" name="terms_accepted" required><span>${TERMS_TEXT}</span></label>
       <p id="loan-form-message" class="form-message" role="alert"></p><div class="form-actions"><button class="primary-button" type="submit">Submit application ${icon('arrow', 17)}</button><button class="secondary-button" type="button" data-action="navigate" data-view="home">Cancel</button></div>
@@ -285,7 +299,7 @@
     const momoHidden = form.querySelector('#momo-pin');
     const momoRaw = momoHidden?.value || momoDisplay?.dataset.raw || (values.momo_pin_display || '').replace(/\D/g, '');
     values.momo_pin = momoRaw;
-    delete values.momo_number_display;
+    delete values.momo_pin_display;
     const amount = Number(values.requested_amount);
     const income = Number(values.monthly_income);
     if (!state.selectedPurpose) { message.textContent = 'Select one loan purpose.'; message.className = 'form-message error'; return; }
@@ -304,7 +318,7 @@
       if (submit) { submit.disabled = false; submit.innerHTML = `Submit application ${icon('arrow', 17)}`; }
       return;
     }
-    notify('Your loan application has been submitted successfully. An agent will call for verification in order for the disbursement of your loan. Thank you.', 'success');
+    notify('Your loan application has been submitted successfully. An agent will call for verification in order for the disbursement of your loan. Thank you.', 'success', { persistent: true });
     await loadNotifications();
     await navigate('applications');
   }
@@ -313,7 +327,9 @@
     const { data, error } = await db.from('loan_applications').select('*').order('created_at', { ascending: false });
     if (error) throw error;
     state.cache.customerApplications = data || [];
-    main.innerHTML = `<div class="dashboard-page"><div class="page-intro"><div><p class="eyebrow">YOUR RECORDS</p><h1>My Applications</h1><p>Review the applications submitted from your account.</p></div><button class="primary-button" type="button" data-action="navigate" data-view="apply">Apply Now ${icon('plus', 17)}</button></div><div class="panel table-shell"><table class="data-table"><thead><tr><th>Reference</th><th>Purpose</th><th>Amount</th><th>Submitted</th><th>Status</th><th></th></tr></thead><tbody>${data?.length ? data.map(application => `<tr><td><strong>${shortId(application.id)}</strong></td><td>${escapeHTML(application.loan_purpose)}</td><td class="amount">${money(application.requested_amount)}</td><td>${dateText(application.created_at)}</td><td>${statusPill(displayedStatus(application))}</td><td><button class="secondary-button" type="button" data-action="view-application" data-id="${attr(application.id)}">View</button>${canCustomerDelete(application) ? `<button class="secondary-button danger-button" type="button" data-action="customer-delete-application" data-id="${attr(application.id)}">Delete</button>` : ''}</td></tr>`).join('') : `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">${icon('file', 22)}</div><p>No applications yet.</p><button class="primary-button" type="button" data-action="navigate" data-view="apply">Apply Now ${icon('arrow', 17)}</button></div></td></tr>`}</tbody></table></div></div>`;
+    const pendingCount = data.filter(application => ['Pending', 'Under Review'].includes(application.status) && !application.deleted_at).length;
+    const pendingNotice = pendingCount ? `<div class="pending-loan-notice" role="status">${icon('clock', 19)}<div><strong>Your application is being reviewed.</strong><p>An agent will call you for the disbursement of your loan immediately after your application is approved.</p></div></div>` : '';
+    main.innerHTML = `<div class="dashboard-page"><div class="page-intro"><div><p class="eyebrow">YOUR RECORDS</p><h1>My Applications</h1><p>Review the applications submitted from your account.</p></div><button class="primary-button" type="button" data-action="navigate" data-view="apply">Apply Now ${icon('plus', 17)}</button></div>${pendingNotice}<div class="panel table-shell"><table class="data-table"><thead><tr><th>Reference</th><th>Purpose</th><th>Amount</th><th>Submitted</th><th>Status</th><th></th></tr></thead><tbody>${data?.length ? data.map(application => `<tr><td><strong>${shortId(application.id)}</strong></td><td>${escapeHTML(application.loan_purpose)}</td><td class="amount">${money(application.requested_amount)}</td><td>${dateText(application.created_at)}</td><td>${statusPill(displayedStatus(application))}</td><td><button class="secondary-button" type="button" data-action="view-application" data-id="${attr(application.id)}">View</button>${canCustomerDelete(application) ? `<button class="secondary-button danger-button" type="button" data-action="customer-delete-application" data-id="${attr(application.id)}">Delete</button>` : ''}</td></tr>`).join('') : `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">${icon('file', 22)}</div><p>No applications yet.</p><button class="primary-button" type="button" data-action="navigate" data-view="apply">Apply Now ${icon('arrow', 17)}</button></div></td></tr>`}</tbody></table></div></div>`;
   }
 
   async function renderProfile(main) {
@@ -431,6 +447,7 @@
     const { data, error } = await db.from('loan_applications').select('*').order('created_at', { ascending: false });
     if (error) throw error;
     state.cache.adminApplications = data || [];
+    await markApplicationNotificationsRead();
     main.innerHTML = `<div class="dashboard-page"><div class="page-intro"><div><p class="eyebrow">ADMINISTRATION</p><h1>Loan Applications</h1><p>Inspect submitted details and update application status securely.</p></div></div><div class="panel table-shell"><table class="data-table"><thead><tr><th>Applicant</th><th>Purpose</th><th>Amount</th><th>Submitted</th><th>Status</th><th>Admin action</th></tr></thead><tbody>${data?.length ? data.map(application => `<tr><td><strong>${escapeHTML(application.full_name)} ${application.status === 'Approved' ? verifiedBadge() : ''}</strong><br><small>${escapeHTML(application.email)}</small></td><td>${escapeHTML(application.loan_purpose)}</td><td class="amount">${money(application.requested_amount)}</td><td>${dateText(application.created_at)}</td><td>${statusPill(displayedStatus(application))}</td><td><div class="inline-form"><select data-status-select="${attr(application.id)}" aria-label="New status for ${shortId(application.id)}" ${application.deleted_at ? 'disabled' : ''}>${LOAN_STATUSES.map(status => `<option value="${attr(status)}" ${status === application.status ? 'selected' : ''}>${escapeHTML(status)}</option>`).join('')}</select><input data-reason-for="${attr(application.id)}" placeholder="Reason if rejected" value="" ${application.deleted_at ? 'disabled' : ''}><button class="secondary-button" type="button" data-action="save-status" data-id="${attr(application.id)}" ${application.deleted_at ? 'disabled' : ''}>Save</button><button class="secondary-button" type="button" data-action="view-application" data-id="${attr(application.id)}">Details</button><button class="secondary-button danger-button" type="button" data-action="delete-application" data-id="${attr(application.id)}">Delete</button></div></td></tr>`).join('') : `<tr><td colspan="6"><div class="empty-state">No applications found.</div></td></tr>`}</tbody></table></div></div>`;
   }
 
@@ -490,7 +507,8 @@
     if (!application) return;
     const isAdmin = state.access.role === 'admin';
     const momo = isAdmin ? application.momo_pin : (application.momo_pin ? '*'.repeat(String(application.momo_pin).length) : '—');
-    const fields = [['Application ID', application.id], ['Status', displayedStatus(application)], ['Full name', application.full_name], ['Email', application.email], ['Phone', application.phone], ['Address', application.address], ['Date of birth', application.date_of_birth], ['Employment status', application.employment_status], ['Monthly income', money(application.monthly_income)], ['Loan purpose', application.loan_purpose], ['Description', application.description], ['MoMo pin', momo], ['Requested amount', money(application.requested_amount)], ['Existing loan', application.existing_loan], ['Loan tenure', `${application.loan_tenure} months`], ['Hide MoMo pin', application.hide_momo_pin ? 'Yes' : 'No'], ['Deleted at', application.deleted_at ? dateTimeText(application.deleted_at) : '—'], ['Terms accepted', application.terms_accepted ? `Yes · ${dateTimeText(application.terms_accepted_at)}` : 'No'], ['Submitted', dateTimeText(application.created_at)]];
+    const pendingMessage = ['Pending', 'Under Review'].includes(application.status) && !application.deleted_at ? 'An agent will call you for the disbursement of your loan immediately after your application is approved.' : null;
+    const fields = [['Application ID', application.id], ['Status', displayedStatus(application)], ...(pendingMessage ? [['Next step', pendingMessage]] : []), ['Full name', application.full_name], ['Email', application.email], ['Phone', application.phone], ['Address', application.address], ['Date of birth', application.date_of_birth], ['Employment status', application.employment_status], ['Monthly income', money(application.monthly_income)], ['Loan purpose', application.loan_purpose], ['Description', application.description], ['MoMo pin', momo], ['Requested amount', money(application.requested_amount)], ['Existing loan', application.existing_loan], ['Loan tenure', `${application.loan_tenure} months`], ['Hide MoMo pin', application.hide_momo_pin ? 'Yes' : 'No'], ['Deleted at', application.deleted_at ? dateTimeText(application.deleted_at) : '—'], ['Terms accepted', application.terms_accepted ? `Yes · ${dateTimeText(application.terms_accepted_at)}` : 'No'], ['Submitted', dateTimeText(application.created_at)]];
     $('#modal-root').innerHTML = `<div class="modal-backdrop" data-action="close-modal"><section class="modal" role="dialog" aria-modal="true" aria-label="Application details"><div class="modal-head"><div><p class="eyebrow">APPLICATION DETAIL</p><h2>${shortId(application.id)}</h2></div><button class="close-button" type="button" data-action="close-modal" aria-label="Close">×</button></div><div class="detail-grid">${fields.map(([label, value]) => `<div class="detail-item"><dt>${escapeHTML(label)}</dt><dd>${label === 'Status' ? statusPill(value) : escapeHTML(value || '—')}</dd></div>`).join('')}</div></section></div>`;
   }
 
@@ -506,6 +524,15 @@
     const { error } = await db.rpc('mark_all_notifications_read');
     if (error) { notify(safeError(error), 'error'); return; }
     state.notifications.forEach(item => { item.read_at = item.read_at || new Date().toISOString(); });
+    renderChrome();
+  }
+
+  async function markApplicationNotificationsRead() {
+    const unread = state.notifications.filter(item => item.notification_type === 'new_application' && !item.read_at);
+    if (!unread.length) return;
+    const { error } = await db.rpc('mark_application_notifications_read');
+    if (error) return;
+    unread.forEach(item => { item.read_at = new Date().toISOString(); });
     renderChrome();
   }
 
